@@ -22,6 +22,7 @@ const (
 	METHOD_POST = "POST"
 	METHOD_PUT = "PUT"
 	METHOD_GET = "GET"
+	METHOD_DELETE = "DELETE"
 
 )
 
@@ -110,34 +111,44 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			// 1) using _replicate
 			// 2) using _replicator
 
+			// replication struct
+			replicator := CouchdbReplicator{Id:"replicate_"+db,
+						Continuous: true, Source:db1.URL(),
+						Target:"http://"+cluster.Username+":"+cluster.Password+"@"+pods[j].Status.PodIP+":"+COUCHDB_PORT_STRING+"/"+db}
+
+
 			// 1)
 			// continuous replication , saves to "_replicate"
 			// limits:  anything in _replication is lost when db is restarted
 
-			// TODO delete old replication, if any found
-			//
-			_, err := db1.ReplicateTo(db2, true)
-
-			if err != nil {
-				ErrorLog(err)
-			}
+			// DELETE old replication, if any found
+			// cannot by done without saving information or without server restart
+			// restart server1 and wait until its online, should be fast
+			//couch.Do(server1.URL()+"/_restart", METHOD_POST, server1.Cred(), nil, nil)
+			//CheckServer(server1, MAX_RETRIES, RETRY_WAIT_TIME)
+			// setup replication
+			//couch.Do(server1.URL()+"/_replicate", METHOD_POST, server1.Cred(), &replicator, nil)
 
 			// 2)
-			// continuous replication via _replicator
+			// continuous replication via "_replicator"
 			// this replication survive restarts but fails replicate database "_users"
 
 			if db == "_users" {
-				// there is a bug with _replicator and db _users
+				// there is a bug with _replicator and db _users, we cannot replicate this DB
 				continue
 			}
-			// TODO delete old replication, if any found
-			// TODO
-			// replicator request
-			replicator := CouchdbReplicator{Id:"replicate_"+db,Continuous: true, Source:db1.URL(),
-					Target:"http://"+cluster.Username+":"+cluster.Password+"@"+pods[j].Status.PodIP+":"+COUCHDB_PORT_STRING+"/"+db}
+			// delete old replication, if any found
+			// get old replicator record
+			oldReplicator := CouchdbReplicator{}
+			couch.Do(server1.URL()+"/_replicator/" + "replicate_" + db , METHOD_GET, server1.Cred(), nil, &oldReplicator)
+			DebugLog(oldReplicator.Rev)
+			// if valid replicator record found, delete it
+			if oldReplicator.Rev != "" {
+				couch.Do(server1.URL()+"/_replicator", METHOD_DELETE, server1.Cred(), &oldReplicator, nil)
+			}
 
-			// send request to DB
-			couch.Do(server1.URL()+"/_replicator", METHOD_POST,server1.Cred(), &replicator, nil)
+			// setup new replication in _replicator db
+			couch.Do(server1.URL()+"/_replicator", METHOD_POST, server1.Cred(), &replicator, nil)
 
 
 		}

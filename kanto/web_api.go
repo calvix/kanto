@@ -146,12 +146,13 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 	// check for errors
 	if err != nil {
 		// fail response
-		io.WriteString(w,"cluster db creation failed error:" +err.Error())
+		io.WriteString(w,"cluster db creation failed error:" +err.Error()+"\n")
 	} else {
 		io.WriteString(w,"cluster db creation successfull, cluster_tag: "+cluster_tag+"\n")
 		// print created cluster info
 		cluster_info, _ := json.Marshal(*couchdb_cluster)
-		io.WriteString(w, string(cluster_info))
+		io.WriteString(w, string(cluster_info)+"\n")
+
 	}
 
 }

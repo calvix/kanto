@@ -353,8 +353,6 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 		ErrorLog("kube control : delete coucdb cluster: list replica sets error")
 		return err
 	}
-	// wait for RS to be deleted, so it wont spawn another pods
-	time.Sleep(time.Millisecond*600)
 	// iterate thorough all replica sets and find matching
 	for _, replicaSet := range replicaSetLists.Items {
 		// check matching name
@@ -369,6 +367,11 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 			break
 		}
 	}
+	// wait for RS to be deleted, so it wont spawn another pods,
+	// there should be something better than hardcoded wait,
+	// some checks for kubernetes rs
+	time.Sleep(time.Millisecond*600)
+
 	// delete orphaned pods
 	// get pod list
 	podsList, err := c2.Pods(cluster.Namespace).List(listOptions)
