@@ -1,0 +1,81 @@
+## Questions that have to be answered (in the presentation)
+  - pods have to be monitored, since if pod is recreated the replication has to be configured again, replicator woudl sovle that
+
+
+
+
+
+
+
+1. issues
+
+replication
+ - only one way (db1 - > db2)
+ - has to be configured for each database separately
+ - would be really hard without persistent storage
+ - replication is done by circle
+ - increase  pod count in pods ->  cancel and set replication from bottom, unknown status without that
+ - couchdb /_restart cancels replication, had to sue replicator instead
+ -  user has to enable replication for each database, since couchdb can not setup replication of all databases
+
+    - version 2.0 would make whole issue much easier thanks to clustering
+    - version 2.0 doest not have official docker image
+    - available docker 2.0 image is clustered solution with 3 nodes and haproxy
+    - 2.0 image does not work with VOLUMES,
+    - or we would have to create couchdb proxy for that
+
+ - _users database cannot be replicated with "_replicator" database ("_replicate" works fine, but it is temporary)
+ -
+
+
+communication
+ - does kubernetes use public ips or private ip for services endpoints?
+ - if service cluster IP is not public then we weill need http proxy   and register
+ - create route via  haproxy ? this would require more work something similar is used in openshift
+ - when running multiple  pods under 1 deployment - how communicate with each pod?
+
+
+kubernetes
+ - use labels vs use namespaces for each client / user
+ - kubernetes client? not so easy as i thought
+
+general
+ -
+ -
+
+couchdb
+ - authentication - default couchdb has free access, use env to create admin user
+                  - create admin user
+                  - create replication user
+                  - replicate with replication user, password has to be some hash of container name
+                  - automatically replicate users DB (_user),
+                   !!!!!!!!! replicator for  db "_users" fails
+                   BUG _id with 2x "_" fails
+                  -
+                  -
+
+
+2. assumption
+ - kubernetes has persistent storage for each couchdb instance
+ - user has to "enable" replication for each database in couchdb instance
+ - kubernetes spawns services endpoints on public routable ip
+
+
+
+ 3. resolved
+ Replication
+  - replication by circle (peer to peer) 1 -> 2 , 2 -> 3 , 3 -> 1, same documents are nto replicated so there wont be infinite loop
+  - using _replicator database , because basic replication is temporary and does not survive restart
+  - when adding more pods,  delete
+ Kubernetes
+  - labels for user/client distinction
+
+
+
+4. How did I proceed with the task in easy steps
+ - read the task description (just fly throught it)
+ - sunday - read task  description more thoroughly
+ - analysing components - couchdb, kubenretes
+ - testing spawning pods via kubectl and replication settings via curl
+ - write everyhitng down
+ - start coding

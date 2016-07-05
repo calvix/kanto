@@ -1,0 +1,53 @@
+
+
+## KUBERNETES
+# create
+kubectl run --image couchdb couchdb-user1 --port=5984 --replicas=3 --labels="user=user1" --env="COUCHDB_USER=admin" --env="COUCHDB_PASSWORD=password"
+
+Use "-e COUCHDB_USER=admin -e COUCHDB_PASSWORD=password"
+
+# expose
+kubectl expose deployment couchdb-user1 --port=5984 --name=svc-couchdb-user-1 --labels="user=user1"
+
+
+#  get filtered
+kubectl get pods -l "user=user1"
+
+# get pod ip
+kubectl describe pod  -l "user=user1" | grep IP | sed -E 's/IP:[[:space:]]+//'
+kubectl get pods -l "user=user1" -o yaml | grep podIP
+
+# endpoint IP
+kubectl get svc -l "user=user1" -o yaml | grep clusterIP  | awk '{print $2}'
+
+
+
+
+
+##COOUCHDB
+
+# createdb
+curl -X PUT 10.254.84.217:5984/sampledb
+
+# add test data
+curl -X PUT -d '{"data":"test1"}' 10.254.84.217:5984/sampledb/doc1
+
+#replicate
+curl -X POST -H "Content-Type:application/json" -d '{"_id":,"db_name_replication",source":"sampledb","target":"http://172.16.20.4:5984/sampledb","continuous":true,"create_target":true}' http://172.16.20.3:5984/_replicator
+
+# stop replication
+curl -X DELETE -d '{"_id":"sampledb_replication","rev":"2-e9b01230714abc1f56f31b2ab3cb65bc"}'  http://172.16.20.5:5984/_replicator
+
+# restart
+curl -H "Content-Type:application/json" -X POST http://root:heslo@172.16.20.3:5984/_restart
+
+# create admin user
+curl -X POST -H "Content-Type:application/json" -d '{"_id":"org.couchdb.user:test","name":"test","type":"user", "roles":["admin"], "password":"test"}' http://root:heslo@172.16.20.3:5984/_users
+
+
+# replicate special tables:
+# _users table
+curl -X POST -H "Content-Type:application/json" -d '{"_id":"replication__users","source":"_users","target":"http://root:heslo@172.16.20.5:5984/_users","continuous":true,"create_target":true}' http://root:heslo@172.16.20.4:5984/_replicator
+# admins documents
+curl -X POST -H "Content-Type:application/json" -d '{"_id":"replication__config","source":"_config","target":"http://root:heslo@172.16.20.4:5984/_config","continuous":true,"create_target":true, "doc_ids":["admin"]}' http://root:heslo@172.16.20.3:5984/_replicator
+

@@ -1,0 +1,20 @@
+kind: Pod
+apiVersion: v1
+metadata:
+  name: couchdb-multi
+  labels:
+    user: user1
+spec:
+  containers:
+    - name: couchdb-user1
+      image: couchdb
+      ports:
+        - containerPort: 5984
+          name: "couchdb-port"
+      volumeMounts:
+      - mountPath: "/usr/local/var/lib/couchdb"
+        name: couchdb-user1-vd
+  volumes:
+    - name: couchdb-user1-volume
+      persistentVolumeClaim:
+claimName: couchdb-user1-pv-claim
