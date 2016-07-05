@@ -402,5 +402,40 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 
 func ListCouchdbClusters(username string) (*[]CouchdbCluster) {
 
+
+
 	return nil
+}
+
+// scale couchdb cluster to new replica number
+// @param cluster *CouchdbCluster - coucbdb cluster with new replica number
+// @param oldDeployment  *extensions.Deployment - deployment with old replica number,  fetched via GetDeployment()
+func ScaleCouchdbCluster(cluster *CouchdbCluster, oldDeployment *extensions.Deployment) (error){
+	// get kube extensions client
+	c, err := KubeClientExtensions(KUBE_API)
+	if err != nil {
+		ErrorLog("kube control : ScaleCouchdbCluster: kube extensions client error")
+		return err
+	}
+	// update replica number
+	oldDeployment.Spec.Replicas = cluster.Replicas
+
+	// update deployment in kubernetes
+	_, err = c.Deployments(cluster.Namespace).Update(oldDeployment)
+	if err != nil {
+		ErrorLog("kube control : ScaleCouchdbCluster: deployment update error")
+		return err
+	}
+
+	// we need to reconfigure replication
+	err = SetupReplication(cluster, []string{"test", "_users"})
+	if err != nil {
+		ErrorLog("kube control : ScaleCouchdbCluster: reconfigure replication error")
+		return err
+	}
+
+	//everything OK
+	return nil
+
+
 }

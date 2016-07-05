@@ -207,6 +207,46 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 	}
+	// get new amount of replicas
+	replicas, _ := strconv.Atoi(r.FormValue("replicas"))
+	//safe guard for bad replica numbers (or missing)
+	if replicas < 1  {
+		replicas = 1
+	} else if replicas > MAX_REPLICAS {
+		replicas = MAX_REPLICAS
+	}
+
+	// cluster tag
+	cluster_tag := r.FormValue("cluster_tag")
+	// labels for cluster components
+	labels := make(map[string]string)
+	labels[LABEL_USER] = user.UserName
+	labels[LABEL_CLUSTER_TAG] = cluster_tag
+	// init cluster struct
+	couchdb_cluster := &CouchdbCluster{Tag: cluster_tag, Replicas: int32(replicas), Username: user.UserName,
+					Namespace: api.NamespaceDefault, Labels: labels, Password: user.Token}
+
+	// check if  cluster tag belong to this user or if its even exist
+	var err error
+	if deployment, _ := GetDeployment(couchdb_cluster); deployment == nil {
+		// no deployment found,  throw an error
+		err = errors.New("invalid or non-existing cluster tag")
+	} else {
+		// its ok, scale cluster
+		err = ScaleCouchdbCluster(couchdb_cluster, deployment)
+	}
+
+	// check for errors
+	if err != nil {
+		// fail response
+		io.WriteString(w,"cluster scaling failed error:" +err.Error())
+	} else {
+		io.WriteString(w,"cluster db scaling successfull, cluster_tag: "+cluster_tag+"\n")
+		// print scaled cluster info
+		cluster_info, _ := json.Marshal(*couchdb_cluster)
+		io.WriteString(w, string(cluster_info)+"\n")
+	}
+
 
 }
 
