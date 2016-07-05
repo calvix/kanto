@@ -144,7 +144,8 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			DebugLog(oldReplicator.Rev)
 			// if valid replicator record found, delete it
 			if oldReplicator.Rev != "" {
-				couch.Do(server1.URL()+"/_replicator", METHOD_DELETE, server1.Cred(), &oldReplicator, nil)
+				server1.Database("_replicator").Delete("replicate_" + db, oldReplicator.Rev)
+				//couch.Do(server1.URL()+"/_replicator/" + "replicate_" + db + "?rev="+, METHOD_DELETE, server1.Cred(), nil, nil)
 			}
 
 			// setup new replication in _replicator db
