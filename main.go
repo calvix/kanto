@@ -43,7 +43,7 @@ func main() {
 		kanto.KUBE_API = env_kube_api
 		kanto.InfoLog("kubernetes API url set to: "+env_kube_api)
 	} else {
-		kanto.InfoLog("kubenretes API url set to default (127.0.0.1:80), use env \"KUBERNETES_API_URL\" to set to different value")
+		kanto.InfoLog("kubernetes API url set to default (127.0.0.1:80), use env \"KUBERNETES_API_URL\" to set to different value")
 	}
 
 	// start kanto web service
@@ -65,7 +65,7 @@ func StartWebService() {
 		errChan <- err
 	}
 	// info log
-	kanto.InfoLog("starting API service")
+	kanto.InfoLog("starting API service on port 80")
 
 	// start server and listen
 	go kantoWebService(errChan)

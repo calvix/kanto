@@ -22,6 +22,12 @@ kubectl get svc -l "user=user1" -o yaml | grep clusterIP  | awk '{print $2}'
 
 
 
+# kanto kube
+kubectl run --image calvix/kanto kanto-webservice --port=80 --replicas=1 --labels="service=kanto" --env="KUBERNETES_API_URL=81.31.33.41:80"
+kubectl expose deployment kanto-webservice --name=kanto-webservice --port=80 --labels="service=kanto"
+
+
+
 
 
 ##COOUCHDB
