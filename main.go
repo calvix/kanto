@@ -41,6 +41,9 @@ func main() {
 	env_kube_api := os.Getenv("KUBERNETES_API_URL")
 	if env_kube_api != "" {
 		kanto.KUBE_API = env_kube_api
+		kanto.InfoLog("kubernetes API url set to: "+env_kube_api)
+	} else {
+		kanto.InfoLog("kubenretes API url set to default (127.0.0.1:80), use env \"KUBERNETES_API_URL\" to set to different value")
 	}
 
 	// start kanto web service
