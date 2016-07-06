@@ -34,6 +34,9 @@ func ConfigureWebHandlers() *http.ServeMux {
 	mux.HandleFunc("/v0/database/scale", scaleDatabase)
 	mux.HandleFunc("/v0/database/replicate", replicateDatabase)
 
+	// default handler for other requests
+	mux.HandleFunc("/", defaultHandler)
+
 	// done
 	return mux
 }
@@ -305,5 +308,16 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 
 }
 
+// default handler for request with bad path
+func defaultHandler(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, "Welcome to Kanto Web-Service v 0.1 \n" +
+			"supported operations: \n" +
+			" - create  	/v0/database/create \n" +
+			" - drop  	/v0/database/drop \n" +
+			" - detail  	/v0/database/detail \n" +
+			" - list  	/v0/database/list \n" +
+			" - scale  	/v0/database/scale \n" +
+			" - replicate  	/v0/database/replicate \n" )
 
+}
 
