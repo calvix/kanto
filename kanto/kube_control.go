@@ -9,22 +9,20 @@ package kanto
 import (
 	"errors"
 	"strings"
-
+	"time"
 	// kubernetes imports
 	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/api"
 	client "github.com/kubernetes/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/api/unversioned"
-
-
 	"k8s.io/kubernetes/pkg/labels"
-	"time"
 )
 
+// default kube api,  can be overwritten by os ENV "KUBERNETES_API_URL"
+var KUBE_API string = "http://127.0.0.1:8080"
 const (
 
-	KUBE_API = "http://127.0.0.1:8080"
 
 	COUCHDB_PORT = 5984
 	COUCHDB_PORT_STRING = "5984"
@@ -281,7 +279,7 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 	// expose couchdb via service
 	svc, err := CreateService(cluster)
 	// save endpoint to struct
-	cluster.Endpoint = "http://" + svc.Spec.ClusterIP + ":" + COUCHDB_PORT_STRING
+	cluster.Endpoint = ClusterEndpoint(svc.Spec.ClusterIP)
 	// check for errors
 	if err != nil {
 		// TODO, if service creation fails, delete deployment
@@ -400,11 +398,55 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 // @param username - string
 // @return *[]CouchdbCLuster - array of all couchdb clusters
 
-func ListCouchdbClusters(username string) (*[]CouchdbCluster) {
+func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster) {
+	// result array
+	clusters :=  []CouchdbCluster{}
 
+	// get kube extensions api
+	c, err := KubeClientExtensions(KUBE_API)
+	if err != nil {
+		ErrorLog("kube control; listCouchdbclusters: get kube client error")
+		ErrorLog(err)
+		return nil
+	}
+	// list options
+	userLabels := make(map[string]string)
+	userLabels[LABEL_USER] = username
+	listOptions := api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(userLabels))}
 
+	// get all deployments
+	deploymentList, err := c.Deployments(namespace).List(listOptions)
+	if err != nil {
+		ErrorLog("kube control; listCouchdbclusters: get deployments error")
+		ErrorLog(err)
+		return nil
+	}
+	// iterate through all deployments
+	for _, deployment := range deploymentList.Items {
+		// get tag from deployment name
+		tag := strings.TrimLeft(deployment.Name, CLUSTER_PREFIX)
+		// inti labels for cluster
+		labels := make(map[string]string)
+		labels[LABEL_USER] = username
+		labels[LABEL_CLUSTER_TAG] = tag
 
-	return nil
+		// init cluster struct
+		cluster := CouchdbCluster{Tag: tag, Username: username, Namespace: namespace,
+					Replicas: deployment.Spec.Replicas, Labels: labels}
+
+		// get service info, for endpoint IP
+		service , err := GetService(&cluster)
+		if err != nil {
+			// cannot get info about service,
+		} else {
+			// save endpoint info
+			cluster.Endpoint = ClusterEndpoint(service.Spec.ClusterIP)
+		}
+		// ad cluster to array
+		clusters = append(clusters, cluster)
+	}
+	// done, return cluster array
+	return &clusters
 }
 
 // scale couchdb cluster to new replica number
@@ -438,4 +480,10 @@ func ScaleCouchdbCluster(cluster *CouchdbCluster, oldDeployment *extensions.Depl
 	return nil
 
 
+}
+
+// return couchdb cluster endpoint URL
+// @param clusterIp - cluster ip from kubernetes service
+func ClusterEndpoint(clusterIp string) (string) {
+	return "http://"+clusterIp+":"+COUCHDB_PORT_STRING
 }

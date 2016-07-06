@@ -19,13 +19,13 @@ type CouchdbCluster struct {
 	// password to  admin user, generated only at creating time
 	Password string `json:",omitempty"`
 	// amount fo replicas (pods) in this cluster
-	Replicas  int32
+	Replicas  int32 `json:",omitempty"`
 	// labels used to distinguish an filter this cluster
 	Labels    map[string]string `json:"-"`
 	// cluster endpoint, which can be used for couchdb http request
-	Endpoint  string
+	Endpoint  string `json:",omitempty"`
 	// kubernetes namespace, where this cluster belongs
-	Namespace string
+	Namespace string `json:",omitempty"`
 }
 
 // couchdb struct for couchdb user (database _users)

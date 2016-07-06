@@ -37,6 +37,12 @@ func main() {
 	// init random generator
 	kanto.InitRandom()
 
+	// load kubernetes api from os env if configured
+	env_kube_api := os.Getenv("KUBERNETES_API_URL")
+	if env_kube_api != "" {
+		kanto.KUBE_API = env_kube_api
+	}
+
 	// start kanto web service
 	StartWebService()
 }
@@ -55,7 +61,7 @@ func StartWebService() {
 		err := http.ListenAndServe(":80", mux)
 		errChan <- err
 	}
-
+	// info log
 	kanto.InfoLog("starting API service")
 
 	// start server and listen

@@ -47,9 +47,10 @@ func listDatabases(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 	// get all couchdb clusters for this user
-	clusters := ListCouchdbClusters(user.UserName)
+	clusters := ListCouchdbClusters(user.UserName, api.NamespaceDefault)
 	// marshal to json encoded string
 	cluster_list, _ := json.Marshal(*clusters)
 	// print output
@@ -66,6 +67,7 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 	// cluster tag
 	cluster_tag := r.FormValue("cluster_tag")
@@ -112,6 +114,7 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	// cluster tag
@@ -166,6 +169,7 @@ func dropDatabase(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 	// get cluster tag
 	cluster_tag := r.FormValue("cluster_tag")
@@ -183,6 +187,7 @@ func dropDatabase(w http.ResponseWriter, r *http.Request) {
 	if deployment, _ := GetDeployment(couchdb_cluster); deployment == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
+		return
 	} else {
 		// delete couchdb cluster
 		err = DeleteCouchdbCluster(couchdb_cluster)
@@ -206,6 +211,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 	// get new amount of replicas
 	replicas, _ := strconv.Atoi(r.FormValue("replicas"))
@@ -231,6 +237,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 	if deployment, _ := GetDeployment(couchdb_cluster); deployment == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
+		return
 	} else {
 		// its ok, scale cluster
 		err = ScaleCouchdbCluster(couchdb_cluster, deployment)
@@ -259,6 +266,7 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	if !user.IsAuthenticated() {
 		// sorry
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
 	}
 
 	// cluster tag
@@ -278,12 +286,22 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 		ErrorLog("web_api - replicate DB : get deployment")
 		ErrorLog(err)
 		io.WriteString(w, err.Error())
+		return
 	}
 
 	couchdb_cluster.Replicas = deployment.Spec.Replicas
 
 	// setup replication for specified databases
-	SetupReplication(couchdb_cluster, databases)
+	err = SetupReplication(couchdb_cluster, databases)
+
+	if err != nil {
+		ErrorLog("web_api - replicate DB : setup replication")
+		ErrorLog(err)
+		io.WriteString(w, "failed to setup replication for dbs \n")
+	} else {
+		// everything is OK
+		io.WriteString(w, "sucesfully configured replication for dbs \n")
+	}
 
 }
 

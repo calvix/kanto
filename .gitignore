@@ -3,3 +3,4 @@ pkg
 *.idea
 kanto-service
 task
+build.sh
