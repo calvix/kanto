@@ -26,16 +26,13 @@ const (
 
 )
 
-
-
 // setup continuous replication between all pods in couchdb cluster
 // first it will cancel any replication for all pods
 // then it will reinit circle continuous replication between all pods
 // requirement -> replicas > 1 !!
 // @param cluster - CouchdbCluster struct - cluster where setup replication
 func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
-	DebugLog("Replication setup for all PODS")
-
+	//DebugLog("Replication setup for all PODS")
 	var podList * []api.Pod
 	var err error
 	for ;; {
@@ -59,10 +56,9 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			}
 			// if we got all pods and all pods are running, then stop waiting and continue with replication
 			if ok {
-				DebugLog("All Pods are ready")
+				//DebugLog("All Pods are ready")
 				break
 			}
-
 		} else {
 			// wait for all pods
 			time.Sleep(time.Millisecond*RETRY_WAIT_TIME)
@@ -141,22 +137,17 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			// get old replicator record
 			oldReplicator := CouchdbReplicator{}
 			couch.Do(server1.URL()+"/_replicator/" + "replicate_" + db , METHOD_GET, server1.Cred(), nil, &oldReplicator)
-			DebugLog(oldReplicator.Rev)
+			//DebugLog(oldReplicator.Rev)
 			// if valid replicator record found, delete it
 			if oldReplicator.Rev != "" {
 				server1.Database("_replicator").Delete("replicate_" + db, oldReplicator.Rev)
-				//couch.Do(server1.URL()+"/_replicator/" + "replicate_" + db + "?rev="+, METHOD_DELETE, server1.Cred(), nil, nil)
 			}
 
 			// setup new replication in _replicator db
 			couch.Do(server1.URL()+"/_replicator", METHOD_POST, server1.Cred(), &replicator, nil)
-
-
 		}
 	}
-	DebugLog("finished replication configuration")
-
-
+	//DebugLog("finished replication configuration")
 
 	// no errors
 	return nil

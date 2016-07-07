@@ -295,7 +295,7 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 		SetupReplication(cluster, []string{"test", "_users"})
 	} else {
 		DebugLog("not setting replication, only 1 replica")
-		DebugLog(cluster.Replicas)
+
 	}
 	// no error
 	return  nil
@@ -398,7 +398,7 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 // @param username - string
 // @return *[]CouchdbCLuster - array of all couchdb clusters
 
-func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster) {
+func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster, error) {
 	// result array
 	clusters :=  []CouchdbCluster{}
 
@@ -407,7 +407,7 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster) 
 	if err != nil {
 		ErrorLog("kube control; listCouchdbclusters: get kube client error")
 		ErrorLog(err)
-		return nil
+		return nil, err
 	}
 	// list options
 	userLabels := make(map[string]string)
@@ -419,7 +419,7 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster) 
 	if err != nil {
 		ErrorLog("kube control; listCouchdbclusters: get deployments error")
 		ErrorLog(err)
-		return nil
+		return nil, err
 	}
 	// iterate through all deployments
 	for _, deployment := range deploymentList.Items {
@@ -446,7 +446,7 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster) 
 		clusters = append(clusters, cluster)
 	}
 	// done, return cluster array
-	return &clusters
+	return &clusters, nil
 }
 
 // scale couchdb cluster to new replica number

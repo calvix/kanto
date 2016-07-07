@@ -6,6 +6,9 @@
 // file for kanto struct types
 package kanto
 
+import (
+	"encoding/json"
+)
 
 
 /*
@@ -52,15 +55,11 @@ type CouchdbReplicator struct {
 	Cancel	bool		`json:"cancel,omitempty"`
 }
 
-// replicator record in _replicator DB, we need to query for it before deletion
-// {"_id":"replicate_test","_rev":"2-8dce183fb0b0d686161cbf26a50a80a4",
-// "source":"http://172.16.20.5:5984/test","target":"http://172.16.20.2:5984/test",
-// "continuous":true,"owner":"johny2","_replication_state":"triggered",
-// "_replication_state_time":"2016-07-05T08:51:00+00:00","_replication_id":"b97c159dc7dacbf355ef22311823366e"}
-type CouchdbReplicatorRecord struct {
-	Id string 		`json:"_id"`
-	Rev string		`json:"_rev"`
-	Source string		`json:"source"`
-	Target string 		`json:"target"`
-	Continuous bool		`json:"continuous"`
+// struct for every api response
+// response is marshaled to JSON
+type KantoResponse struct {
+	Status 		string `json:"status"`
+	StatusMessage 	string `json:"status_message,omitempty"`
+	Error  		string `json:"error_detail,omitempty"`
+	Result 		*json.RawMessage `json:"result,omitempty"`
 }
