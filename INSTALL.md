@@ -21,7 +21,7 @@ simply run commands below
  
  `export KUBERNETES_API_URL="kubernetes-api.server.example.com:8080"`
  
- `./kanto-webservice`
+ `./kanto-service`
  
  
 # 2. docker image
