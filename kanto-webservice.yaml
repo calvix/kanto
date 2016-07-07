@@ -20,7 +20,7 @@ spec:
       containers:
       - env:
         - name: KUBERNETES_API_URL
-          value: 81.31.33.41:80
+          value: 127.0.0.1:8080
         image: calvix/kanto
         name: kanto-webservice
         ports:
