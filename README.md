@@ -21,7 +21,7 @@ auth POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
 
-response is in JSON, corresponding struct is defined in kanto/types.go - **KantoResponse**
+API response is in JSON, corresponding struct is defined in kanto/types.go - **KantoResponse**
 ```go
 type KantoResponse struct {
 	Status 		    string              `json:"status"`
@@ -101,21 +101,27 @@ POST values:
 few examples of using kanto api via **curl**
 
 create couchdb cluster
+
 `curl  127.0.0.1:80/v0/create -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1&replicas=3"`
 
 scale couchdb cluster
+
 `curl  127.0.0.1:80/v0/scale -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1&replicas=5"`
 
 show couchdb cluster detail
+
 `curl  127.0.0.1:80/v0/detail -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1"`
 
 replicate db "mydb" and "special" in cluster
+
 `curl  127.0.0.1:80/v0/replicate -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1&databases=mydb,special"`
 
 list all couchdb clusters for user
+
 `curl  127.0.0.1:80/v0/list -d "username=johny2&token=Ty5wvW7LuQ3T"`
 
 delete couchdb cluster
+
 `curl  127.0.0.1:80/v0/delete -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1"`
  
  
