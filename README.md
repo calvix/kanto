@@ -1,9 +1,16 @@
 # kanto
 web service to create and manage multi instance couchdb databases (with replication) within kubernetes
 
+REQUIRES: kubernetes v 1.2.1+ 
+
+WARNING: this is not ready-to-production service, since its lacking authentication for users and it is completely stateless.
+Check Limitations section for more info about what is missing.
+
 RECOMMENDED: Read about how couchdb cluster (and replication in cluster) is configured in part #Couchdb Cluster configuration (below API documentation)
+ 
+Check INSTALL.md for instruction how to run/compile kanto
 
-
+# API DOCUMENTATION
 API for: 
  * creating couchdb cluster
  * deleting couchdb cluster
@@ -11,10 +18,7 @@ API for:
  * replicate - configure which couchdb databases will be replicated among all replicas
  * listing all couchdb clusters for user
  * show detail about couchdb cluster
- 
-Check INSTALL.md for instruction how to run/compile kanto
 
-# API DOCUMENTATION
 all request to API, should be http POST type, since you always have to provide authentication
 
 auth POST values:
@@ -40,7 +44,7 @@ Error and Result can be omitted depending on operation and operation result.
 
 
 
-# create
+## create
 path:
 `/v0/create`
 
@@ -50,7 +54,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-# delete
+## delete
 path:
 `/v0/delete`
 
@@ -59,7 +63,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-# scale
+## scale
 path:
 `/v0/scale`
 
@@ -69,7 +73,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-# replicate
+## replicate
 path:
 `/v0/replicate`
 
@@ -79,7 +83,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
 
-# list
+## list
 path:
 `/v0/list`
 
@@ -88,7 +92,7 @@ POST values:
  * **token** - string, required: auth token for username, it is similar to password
  
   
-# detail
+## detail
 path:
 `/v0/detail`
 
@@ -97,7 +101,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-# api test examples
+## api test examples
 few examples of using kanto api via **curl**
 
 create couchdb cluster
@@ -128,3 +132,34 @@ delete couchdb cluster
  
 # Couchdb Cluster configuration
 info about how kanto creates couchdb cluster and how configure replication
+
+## kubernetes info
+kanto is using couchdb 1.6.1 official docker image for kubernetes pods, couchdb port is default - 5984
+
+When creating a new couchdb cluster, kanto will create "kind: Deployment" and "kind: Service" in kubernetes. 
+Deployment will create corresponding pods (amount is specified with Replicas values).
+These pods are not linked with any application logic. 
+Service will create endpoint that will be accessible from outside.
+This endpoint will load-balance request to all deployment pods.
+
+There is a problem with PV within kubernetes, currently there is now ay how to automatically assign PV to each pod.
+ (there is component PetSet in kubernetes 1.3.1 that can do it easily, it is quite similar to deployment)
+
+
+## couchdb pod configuration
+docker image couchdb is started with ENV
+
+## replication between pods
+The biggest problem with couchdb replication is that it can not be configured for all databases. 
+Each database has to be separately configured for replication. This means user has to sent request
+Unfortunately when scaling (up or down), replication has to be cleared and configured again. 
+This mean we have to save which dbs user want to replicate, so we can load this db list when scaling.
+Since this is stateless configuration, this has to be implemented. But it should be fair easy, 
+if you have somewhere running database with this information. (just save on /replicate request and load on /scale request)
+
+
+# Limitations
+To move it into production I would recommend implement:
+ * corresponding authentication - 
+ * saving information about what databases user want replicate - check section: Couchdb Cluster configuration - replication for more info
+ * sophisticated couchdb username and password configuration - currently, each couchdb will have admin with username:token credentials 

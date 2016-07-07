@@ -17,6 +17,8 @@ import (
 	"k8s.io/kubernetes/pkg/apis/extensions"
 	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/labels"
+	"k8s.io/kubernetes/pkg/apis/apps"
+	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 // default kube api,  can be overwritten by os ENV "KUBERNETES_API_URL"
@@ -36,6 +38,7 @@ const (
 	LABEL_CLUSTER_TAG = "cluster_tag"
 
 	DOCKER_IMAGE = "couchdb"
+	COUCHDB_VOLUME_MOUNTPATH = "/usr/local/var/lib/couchdb"
 )
 
 // create kubernetes api client
@@ -58,6 +61,17 @@ func KubeClientExtensions(host string) (*client.ExtensionsClient, error) {
 	// return client and error
 	return client.NewExtensions(config)
 }
+// create kubernetes api client
+// @param host string - url for kubernetes API
+// @return client - kubernetes api client
+// @return error
+func KubeClientApps(host string) (*client.AppsClient, error) {
+	// create configuration for kube client
+	config :=  &restclient.Config{Host:host}
+	// return client and error
+	return client.NewApps(config)
+}
+
 
 // create deployment for couchdb cluster
 // init all necessary struct for deployment and then via kube client creates it
@@ -77,10 +91,23 @@ func CreateDeployment(cluster * CouchdbCluster)(*extensions.Deployment, error) {
 	// container specs
 	container := api.Container{Name: DOCKER_IMAGE + "-"+ cluster.Tag, Image: DOCKER_IMAGE,
 				Ports: []api.ContainerPort{contPort}, Env: []api.EnvVar{contEnv_dbName, contEnv_dbPass}}
-
+	/*
+	VOLUMES COMMENTED
+	// volume mount
+	volMount := api.VolumeMount{Name:CLUSTER_PREFIX+cluster.Tag, MountPath: COUCHDB_VOLUME_MOUNTPATH}
+	// !! comment if you do not want to user PV a PVC
+	container.VolumeMounts = []api.VolumeMount{volMount}
+	*/
 	// pod specifications
 	podSpec := api.PodSpec{Containers:[]api.Container{container}}
-
+	/*
+	// persistent volumes, claims
+	pvClaim := api.PersistentVolumeClaimVolumeSource{ClaimName:CLUSTER_PREFIX+cluster.Tag}
+	volume := api.Volume{Name:CLUSTER_PREFIX+cluster.Tag}
+	volume.PersistentVolumeClaim = &pvClaim
+	// !! comment if you do not want to user PV a PVC
+	podSpec.Volumes = []api.Volume{volume}
+	*/
 	// pod template spec
 	podTemplate := api.PodTemplateSpec{Spec: podSpec}
 	podTemplate.Labels = cluster.Labels
@@ -114,6 +141,127 @@ func CreateDeployment(cluster * CouchdbCluster)(*extensions.Deployment, error) {
 		return c.Deployments(cluster.Namespace).Create(&deployment)
 	}
 }
+
+
+// PetSet - available only in kubernetes v1.3+
+// big advantage: it allow create persistentVolume template
+// this template can create persistent volumeClaim for each POD automatically
+//
+// create petSet for couchdb cluster
+// init all necessary struct for petSet and then via kube client creates it
+// @ param cluster - struct CouchdbCluster - required:
+// @return extensions.Deployment - created kube deployment
+// @return error - errors that occur during creation
+//
+func CreatePetSet(cluster * CouchdbCluster)(*apps.PetSet, error) {
+	// container ports init
+	// container ports init
+	contPort := api.ContainerPort{ContainerPort: COUCHDB_PORT}
+
+	// container env init
+	contEnv_dbName := api.EnvVar{Name: "COUCHDB_USER", Value: cluster.Username}
+	contEnv_dbPass := api.EnvVar{Name: "COUCHDB_PASSWORD", Value: cluster.Password}
+
+	// container specs
+	container := api.Container{Name: DOCKER_IMAGE + "-"+ cluster.Tag, Image: DOCKER_IMAGE,
+				Ports: []api.ContainerPort{contPort}, Env: []api.EnvVar{contEnv_dbName, contEnv_dbPass}}
+	/*
+	VOLUMES COMMENTED
+	// volume mount
+	volMount := api.VolumeMount{Name:CLUSTER_PREFIX+cluster.Tag, MountPath: COUCHDB_VOLUME_MOUNTPATH}
+	// !! comment if you do not want to user PV a PVC
+	container.VolumeMounts = []api.VolumeMount{volMount}
+	*/
+	// pod specifications
+	podSpec := api.PodSpec{Containers:[]api.Container{container}}
+	/*
+	// persistent volumes, claims
+	pvClaim := api.PersistentVolumeClaimVolumeSource{ClaimName:CLUSTER_PREFIX+cluster.Tag}
+	volume := api.Volume{Name:CLUSTER_PREFIX+cluster.Tag}
+	volume.PersistentVolumeClaim = &pvClaim
+	// !! comment if you do not want to user PV a PVC
+	podSpec.Volumes = []api.Volume{volume}
+	*/
+	// pod template spec
+	podTemplate := api.PodTemplateSpec{Spec: podSpec}
+	podTemplate.Labels = cluster.Labels
+
+	// pet set spec label selector
+	lSelector := unversioned.LabelSelector{MatchLabels: cluster.Labels}
+
+	/*
+	PET SET, included in kube 1.3+
+	http://kubernetes-v1-3.github.io/docs/user-guide/petset/
+	// testing
+
+	*/
+
+	// pvc claim
+	pvc := api.PersistentVolumeClaim{}
+	pvc.Name = CLUSTER_PREFIX + cluster.Tag+"-pvc"
+	pvc.Annotations = make(map[string]string)
+	pvc.Annotations["volume.alpha.kubernetes.io/storage-class"] = "anything"
+
+	// resource list for pvc claim template
+	rsList := make(api.ResourceList)
+	// SIZE
+	rsList[api.ResourceStorage] = *(resource.NewQuantity(5*1024*1024*1024, resource.BinarySI))
+	// pvc SPEC
+	pvcSpec := api.PersistentVolumeClaimSpec{}
+	pvcSpec.Resources.Requests = api.ResourceList(rsList)
+
+	pvc.Spec = pvcSpec
+	// pet set specs
+	petSetSPec := apps.PetSetSpec{Replicas: int(cluster.Replicas), Template: podTemplate,
+				Selector: &lSelector, VolumeClaimTemplates: []api.PersistentVolumeClaim{pvc}}
+
+	// pet set
+	petSet := apps.PetSet{Spec:petSetSPec}
+	petSet.Name = CLUSTER_PREFIX + cluster.Tag
+	petSet.Labels = cluster.Labels
+
+
+	/*
+	// get a new kube extensions client
+	c, err := KubeClientExtensions(KUBE_API)
+	// check for errors
+	if err != nil {
+		ErrorLog("Cannot connect to Kubernetes api ")
+		ErrorLog(err)
+
+		return nil, err
+	} else {
+		// debug output
+		//data, _ := deployment.Marshal()
+		//InfoLog(data)
+
+		// create deployment
+		return c.Deployments(cluster.Namespace).Create(&deployment)
+	}
+
+	*/
+	// get a new kube extensions client
+	c, err := KubeClientApps(KUBE_API)
+	// check for errors
+	if err != nil {
+		ErrorLog("Cannot connect to Kubernetes api ")
+		ErrorLog(err)
+
+		return nil, err
+	} else {
+		// debug output
+		//data, _ := deployment.Marshal()
+		//InfoLog(data)
+
+		// create deployment
+		return c.PetSets(cluster.Namespace).Create(&petSet)
+	}
+
+}
+
+
+
+
 // create service for couchdb cluster
 // init all necessary struct for deployment and then via kube client creates it
 // service expose cluster to outside

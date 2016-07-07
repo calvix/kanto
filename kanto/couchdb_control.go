@@ -35,6 +35,7 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 	//DebugLog("Replication setup for all PODS")
 	var podList * []api.Pod
 	var err error
+	retries := MAX_RETRIES
 	for ;; {
 		// get pods for this cluster
 		podList, err = GetPods(cluster)
@@ -59,9 +60,15 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 				//DebugLog("All Pods are ready")
 				break
 			}
+		} else if retries <= 0 {
+			errors.New("waited too long for containers state")
+			ErrorLog(err)
+			return err
+			break
 		} else {
 			// wait for all pods
 			time.Sleep(time.Millisecond*RETRY_WAIT_TIME)
+			retries--
 		}
 	}
 	// create couchdb admin credentials
