@@ -8,3 +8,7 @@ API for:
  * scaling (more or less replicas) couchdb cluster
  * listing all couchdb clusters for user
  * write detail about couchdb cluster
+ 
+
+# create
+

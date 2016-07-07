@@ -1,0 +1,46 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    service: kanto
+  name: kanto-webservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      service: kanto
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        service: kanto
+    spec:
+      containers:
+      - env:
+        - name: KUBERNETES_API_URL
+          value: 81.31.33.41:80
+        image: calvix/kanto
+        name: kanto-webservice
+        ports:
+        - containerPort: 80
+        resources: {}
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    service: kanto
+  name: kanto-webservice
+spec:
+  ports:
+  - port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    service: kanto
+status:
+  loadBalancer: {}
