@@ -35,8 +35,8 @@ Dockerfile can be found in separate repository: https://github.com/calvix/kanto-
 
 # 3. run in kubernetes
 prerequisites:
- * running kubernetes service
- 
+ * running kubernetes 1.2.1+ (requires kube kind deployment)
+
 kubernetes is using docker image **calvix/kanto**
 
 whole template is prepared in **kanto-webservice.yaml**

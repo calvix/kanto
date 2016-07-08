@@ -6,11 +6,11 @@ kanto is a service that can create and manage multi instance couchdb databases (
 REQUIRES: kubernetes v 1.2.1+ 
 
 WARNING: this is not ready-to-production service, since its lacking authentication for users and it is completely stateless.
-Check Limitations section for more info about what is missing.
+Check [Limitations](#limitations) section for more info about what is missing.
 
 RECOMMENDED: Read about how couchdb cluster (and replication in cluster) is configured in part #Couchdb Cluster configuration (below API documentation)
  
-Check INSTALL.md for instruction how to run/compile kanto
+Check [INSTALL.md](https://github.com/calvix/kanto/blob/master/INSTALL.md) for instruction how to run/compile kanto
 
 # ENVS
 kanto uses enviroment values to fetch some configuration values
@@ -18,7 +18,7 @@ env list:
  * **KUBERNETES_API_URL** - url to kubernetes api server (defaults to 127.0.0.1:8080)
  * **SPAWNER_TYPE** - decide what kind of component will spawn pods in kuberentes (possible values: "deployment" (default, np pv), "rc")
 
-check [kubernetes info](##kubernetes_info)  more information about SPAWNER_TYPE
+check [kubernetes info](#kubernetes-info)  more information about SPAWNER_TYPE
 
 
 # API DOCUMENTATION
@@ -55,7 +55,7 @@ Error and Result can be omitted depending on operation and operation result.
 
 
 
-## create
+##create
 path:
 `/v0/create`
 
@@ -65,7 +65,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-## delete
+##delete
 path:
 `/v0/delete`
 
@@ -74,7 +74,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-## scale
+##scale
 path:
 `/v0/scale`
 
@@ -84,7 +84,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-## replicate
+##replicate
 path:
 `/v0/replicate`
 
@@ -94,7 +94,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
 
-## list
+##list
 path:
 `/v0/list`
 
@@ -103,7 +103,7 @@ POST values:
  * **token** - string, required: auth token for username, it is similar to password
  
   
-## detail
+##detail
 path:
 `/v0/detail`
 
@@ -112,7 +112,7 @@ POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
  * **token** - string, required: auth token for username, it is similar to password
  
-## api test examples
+##api test examples
 few examples of using kanto api via **curl**
 
 create couchdb cluster
@@ -141,15 +141,15 @@ delete couchdb cluster
  
  
  
-# Couchdb Cluster configuration
+#Couchdb Cluster configuration
 info about how kanto creates couchdb cluster and how configure replication
 
-##kubernetes_info
+##kubernetes info
 kanto works fine with kubernetes 1.2.1+
 
 kanto is using **couchdb** 1.6.1 official docker image for kubernetes pods, couchdb port is default - **5984**
 
-if using ***SPAWNER_TYPE = deployment**
+if using **SPAWNER_TYPE=deployment**
 
 When creating a new couchdb cluster, kanto will create "kind: Deployment" and "kind: Service" in kubernetes. 
 Deployment will create corresponding pods (amount is specified with Replicas values).
@@ -160,7 +160,7 @@ This solution does not use persistent volumes.
 
 
 
-if using **SPAWNER_TYPE = rc**
+if using **SPAWNER_TYPE=rc**
 
 When creating a new couchdb cluster, kanto will create  one "kind: Service" and then replication controller for each replica.
 Each replication controller spawns 1 pod and each pod has volume mounts and persistent volume claim for this volume.
@@ -170,7 +170,7 @@ This endpoint will load-balance request to all deployment pods.
 This solution requires pre-created persistent volumes in kubernetes (at least 5Gi storage and "ReadWriteOnce" access mode)
 
 
-## couchdb pod configuration
+##couchdb pod configuration
 Docker image couchdb is started with ENVs **COUCHDB_USER** and **COUCHDB_PASSWORD**  with values username and token.
 This configuration will disable couchdb admin party mode and only admin will be able to do privileged operations.
 Pod has exposed port 5984 to access couchdb. Persistent volumes (if used) is mounted to "***/usr/local/var/lib/couchdb**".
@@ -185,7 +185,7 @@ If you have somewhere running database with this information. (just save on /rep
 Now it only stores db information to global variable so every restart will wipe data. Check file **user.go** and functions: **DatabasesToReplicate** and **SaveReplDatabases**
 
 
-# Limitations
+#Limitations
 To move it into production I would recommend implement:
  * corresponding authentication - **user.go** has only dummy functions
  * saving information about what databases user want replicate - check section: [replication](##replication)Couchdb Cluster configuration - replication for more info
