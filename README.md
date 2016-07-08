@@ -1,8 +1,7 @@
 # kanto
-
 TODO: pv wont work with couchdb docker image
 
-web service to create and manage multi instance couchdb databases (with replication) within kubernetes
+kanto is a service that can create and manage multi instance couchdb databases (with continuous replication) in kubernetes
 
 REQUIRES: kubernetes v 1.2.1+ 
 
@@ -13,8 +12,17 @@ RECOMMENDED: Read about how couchdb cluster (and replication in cluster) is conf
  
 Check INSTALL.md for instruction how to run/compile kanto
 
+# ENVS
+kanto uses enviroment values to fetch some configuration values
+env list:
+ * **KUBERNETES_API_URL** - url to kubernetes api server (defaults to 127.0.0.1:8080)
+ * **SPAWNER_TYPE** - decide what kind of component will spawn pods in kuberentes (possible values: "deployment" (default, np pv), "rc")
+
+check [kubernetes info](##kubernetes_info)  more information about SPAWNER_TYPE
+
+
 # API DOCUMENTATION
-API for: 
+API operations:
  * creating couchdb cluster
  * deleting couchdb cluster
  * scaling (more or less replicas in couchdb cluster) 
@@ -22,7 +30,7 @@ API for:
  * listing all couchdb clusters for user
  * show detail about couchdb cluster
 
-all request to API, should be http POST type, since you always have to provide authentication
+all request to API, should be http POST, since you always have to provide authentication (username + token)
 
 auth POST values:
  * **username** - string, required: username to authenticate to kanto service (currently kanto has only dummy auth, so everyone is able to create clusters, but username is still needed)
@@ -136,33 +144,49 @@ delete couchdb cluster
 # Couchdb Cluster configuration
 info about how kanto creates couchdb cluster and how configure replication
 
-## kubernetes info
-kanto is using couchdb 1.6.1 official docker image for kubernetes pods, couchdb port is default - 5984
+##kubernetes_info
+kanto works fine with kubernetes 1.2.1+
+
+kanto is using **couchdb** 1.6.1 official docker image for kubernetes pods, couchdb port is default - **5984**
+
+if using ***SPAWNER_TYPE = deployment**
 
 When creating a new couchdb cluster, kanto will create "kind: Deployment" and "kind: Service" in kubernetes. 
 Deployment will create corresponding pods (amount is specified with Replicas values).
 These pods are not linked with any application logic. 
 Service will create endpoint that will be accessible from outside.
 This endpoint will load-balance request to all deployment pods.
+This solution does not use persistent volumes.
 
-There is a problem with PV within kubernetes, currently there is now ay how to automatically assign PV to each pod.
- (there is component PetSet in kubernetes 1.3.1 that can do it easily, it is quite similar to deployment)
+
+
+if using **SPAWNER_TYPE = rc**
+
+When creating a new couchdb cluster, kanto will create  one "kind: Service" and then replication controller for each replica.
+Each replication controller spawns 1 pod and each pod has volume mounts and persistent volume claim for this volume.
+These pods are not linked with any application logic.
+Service will create endpoint that will be accessible from outside.
+This endpoint will load-balance request to all deployment pods.
+This solution requires pre-created persistent volumes in kubernetes (at least 5Gi storage and "ReadWriteOnce" access mode)
 
 
 ## couchdb pod configuration
-docker image couchdb is started with ENV
+Docker image couchdb is started with ENVs **COUCHDB_USER** and **COUCHDB_PASSWORD**  with values username and token.
+This configuration will disable couchdb admin party mode and only admin will be able to do privileged operations.
+Pod has exposed port 5984 to access couchdb. Persistent volumes (if used) is mounted to "***/usr/local/var/lib/couchdb**".
 
-## replication between pods
+##replication between pods
 The biggest problem with couchdb replication is that it can not be configured for all databases. 
-Each database has to be separately configured for replication. This means user has to sent request
-Unfortunately when scaling (up or down), replication has to be cleared and configured again. 
+Each database has to be separately configured for replication. This means user has to sent request for each db that should be replicated in cluster.
+Unfortunately when scaling (up or down), replication has to be cleared and reconfigured.
 This mean we have to save which dbs user want to replicate, so we can load this db list when scaling.
 Since this is stateless configuration, this has to be implemented. But it should be fair easy, 
-if you have somewhere running database with this information. (just save on /replicate request and load on /scale request)
+If you have somewhere running database with this information. (just save on /replicate request and load on /scale request)
+Now it only stores db information to global variable so every restart will wipe data. Check file **user.go** and functions: **DatabasesToReplicate** and **SaveReplDatabases**
 
 
 # Limitations
 To move it into production I would recommend implement:
- * corresponding authentication - 
- * saving information about what databases user want replicate - check section: Couchdb Cluster configuration - replication for more info
- * sophisticated couchdb username and password configuration - currently, each couchdb will have admin with username:token credentials 
+ * corresponding authentication - **user.go** has only dummy functions
+ * saving information about what databases user want replicate - check section: [replication](##replication)Couchdb Cluster configuration - replication for more info
+ * sophisticated couchdb username and password configuration - currently, each couchdb will have admin user created with username:token credentials
