@@ -1,5 +1,5 @@
 # kanto
-TODO: pv wont work with couchdb docker image
+TODO:  replication is configured with podIP, but if pod is created on new node, ip can change, so it would be good idea to create service for each pod and configure replication via internal dns name
 
 kanto is a service that can create and manage multi instance couchdb databases (with continuous replication) in kubernetes
 
@@ -173,7 +173,7 @@ This solution requires pre-created persistent volumes in kubernetes (at least 5G
 ##couchdb pod configuration
 Docker image couchdb is started with ENVs **COUCHDB_USER** and **COUCHDB_PASSWORD**  with values username and token.
 This configuration will disable couchdb admin party mode and only admin will be able to do privileged operations.
-Pod has exposed port 5984 to access couchdb. Persistent volumes (if used) is mounted to "***/usr/local/var/lib/couchdb**".
+Pod has exposed port 5984 to access couchdb. Persistent volumes (if used) is mounted to "**/usr/local/var/lib/couchdb**".
 
 ##replication between pods
 The biggest problem with couchdb replication is that it can not be configured for all databases. 
@@ -188,10 +188,12 @@ Now it only stores db information to global variable so every restart will wipe 
 Replication is configured via "_replicator" database and is always **continuous**.
 Replication is configured in circle (ie. pod1 replicates to pod2, pod2 replicates to pod3, ... , podN replicates to pod1)
 Unfortunately in couchdb 1.6.1 there is a bug that fails replicate database "_users".
-Replication will be aborted with message that replication worked died. (in replication message there is actual erlang stacktrace instead of error message). Same settings in database "_replicate" works.
+Replication will be aborted with message that replication worked died. (in replication message there is actual erlang stacktrace instead of error message).
+Same settings in database "_replicate" works.
 
 
-Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes) in single docker container listening on localhost and haproxy which balances requests to nodes.
+Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes)
+in single docker container listening on localhost and haproxy which balances requests to nodes.
 
 #Limitations
 To move it into production I would recommend implement:

@@ -35,7 +35,7 @@ func (cluster *CouchdbCluster) CouchdbReplicationController() (*api.ReplicationC
 		DebugLog("spawner_rc: created pvc "+pvClaim.Name)
 	}
 	// get pod template for replication controller
-	podTemplate := cluster.CouchdbPodTemplate(false, pvClaim.Name)
+	podTemplate := cluster.CouchdbPodTemplate(true, pvClaim.Name)
 	// replication controller spec
 	rcSpec := api.ReplicationControllerSpec{Selector: cluster.Labels, Template: podTemplate,
 								Replicas: 1}

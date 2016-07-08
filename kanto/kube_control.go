@@ -32,7 +32,7 @@ const (
 	LABEL_CLUSTER_TAG = "cluster_tag"
 	LABEL_REPLICA = "replica"
 
-	DOCKER_IMAGE = "couchdb"
+	DOCKER_IMAGE = "calvix/couchdb"
 	COUCHDB_VOLUME_MOUNTPATH = "/usr/local/var/lib/couchdb"
 	COUCHDB_VOLUME_SIZE = 5*1024*1024*1024 // 5GB
 
@@ -426,7 +426,7 @@ func (cluster *CouchdbCluster) CouchdbPodTemplate(volumes bool, pvcClaimName str
 	contEnv_dbPass := api.EnvVar{Name: "COUCHDB_PASSWORD", Value: cluster.Password}
 
 	// container specs
-	container := api.Container{Name: DOCKER_IMAGE + "-"+ cluster.Tag, Image: DOCKER_IMAGE,
+	container := api.Container{Name: CLUSTER_PREFIX + "-"+ cluster.Tag, Image: DOCKER_IMAGE,
 						Ports: []api.ContainerPort{contPort}, Env: []api.EnvVar{contEnv_dbName, contEnv_dbPass}}
 
 	//VOLUMES in container
