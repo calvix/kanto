@@ -142,7 +142,7 @@ delete couchdb cluster
  
  
 #Couchdb Cluster configuration
-info about how kanto creates couchdb cluster and how configure replication
+info about how kanto creates couchdb cluster and how it configure replication withtin couchdb
 
 ##kubernetes info
 kanto works fine with kubernetes 1.2.1+
@@ -185,8 +185,14 @@ If you have somewhere running database with this information. (just save on /rep
 Now it only stores db information to global variable so every restart will wipe data. Check file **user.go** and functions: **DatabasesToReplicate** and **SaveReplDatabases**
 
 
+Replication is configured via "_replicator" database and is always **continuous**.
+Replication is configured in circle (ie. pod1 replicates to pod2, pod2 replicates to pod3, ... , podN replicates to pod1)
+Unfortunately in couchdb 1.6.1 there is a bug that  fails when trying replicate database "_users".
+Replication will be aborted with message tak replication worked died. (in replication message there is actual erlang stacktrace instead of error message). Same settings in database "_replicate" works.
+Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes) in single docker container.
+
 #Limitations
 To move it into production I would recommend implement:
  * corresponding authentication - **user.go** has only dummy functions
- * saving information about what databases user want replicate - check section: [replication](##replication)Couchdb Cluster configuration - replication for more info
+ * saving information about what databases user want replicate - check section: [replication](#replication) for more info
  * sophisticated couchdb username and password configuration - currently, each couchdb will have admin user created with username:token credentials
