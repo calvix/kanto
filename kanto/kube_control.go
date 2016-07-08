@@ -81,19 +81,20 @@ func KubeClientApps(host string) (*client.AppsClient, error) {
 // if cluster has more than 1 replica it will setup replication between all pods
 // @param cluster - CouchdbCluster struct - required: tag, username, replicas, labels
 //
-func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
+func (cluster *CouchdbCluster) CreateCouchdbCluster() (error){
 	// create pod spawner for cluster
 	var err error
 	if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
 		// deployment does nto work with persisten volumes
-		_, err = CreateDeployment(cluster)
+		_, err = cluster.CreateDeployment()
 	} else if SPAWNER_TYPE == COMPONENT_RC {
 		// rc works with persistent volumes
-		err = CreateReplicationControllers(cluster)
+		err = cluster.CreateReplicationControllers()
 		// clear replica labels
 		delete(cluster.Labels, LABEL_REPLICA)
 	} else if SPAWNER_TYPE == COMPONENT_PETSET {
-		_, err = CreatePetSet(cluster)
+		// create pet sets
+		_, err = cluster.CreatePetSet()
 	}
 
 	// check for errors
@@ -104,7 +105,7 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 	}
 
 	// expose couchdb via service
-	svc, err := CreateService(cluster)
+	svc, err := cluster.CreateService()
 	// save endpoint to struct
 	cluster.Endpoint = ClusterEndpoint(svc.Spec.ClusterIP)
 	// check for errors
@@ -118,7 +119,7 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 	// if required more than 1 replica, configure replication
 	if cluster.Replicas > 1 {
 		// setup replication for basic databases
-		SetupReplication(cluster, DatabasesToReplicate())
+		cluster.SetupReplication(DatabasesToReplicate(cluster.Username))
 	} else {
 		DebugLog("kube_control: not setting replication, only 1 replica")
 	}
@@ -130,17 +131,17 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 // function will delete deployment and service and then all orphaned components (cascade deleting does not work)
 // @param cluster - CouchdbCluster struct with info about cluster we want delete (required: namespace, tag, username, labels)
 // @return error -  error if something goes wrong
-func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) DeleteCouchdbCluster() (error) {
 	// Delete service
-	err := DeleteService(cluster)
+	err := cluster.DeleteService()
 	if err != nil{
 		ErrorLog("kube_control: deleteCouchdb cluster: delete service")
 	}
 	// delete spawner
 	if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
-		err = DeleteDeployment(cluster)
+		err = cluster.DeleteDeployment()
 	} else if SPAWNER_TYPE == COMPONENT_RC {
-		err = DeleteReplicationControllers(cluster)
+		err = cluster.DeleteReplicationControllers()
 	} else if SPAWNER_TYPE == COMPONENT_PETSET {
 		// TODO petset deletion
 	}
@@ -154,7 +155,7 @@ func DeleteCouchdbCluster(cluster *CouchdbCluster) (error) {
 	time.Sleep(time.Millisecond*600)
 
 	// delete all remaining pods
-	err = DeletePods(cluster)
+	err = cluster.DeletePods()
 	if err != nil {
 		ErrorLog("kube_control: delete deployment: delete pods")
 		return err
@@ -199,12 +200,12 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster, 
 		labels[LABEL_CLUSTER_TAG] = tag
 
 		// init cluster struct
-		cluster := CouchdbCluster{Tag: tag, Username: username, Namespace: namespace,
+		cluster := &CouchdbCluster{Tag: tag, Username: username, Namespace: namespace,
 					Endpoint: service.Spec.ClusterIP, Labels: labels}
 		// get replica count
 		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
 			// get deployment
-			deployment, err := GetDeployment(&cluster)
+			deployment, err := cluster.GetDeployment()
 			if err != nil {
 				ErrorLog("kube control; listCouchdbclusters: get deployment error")
 				ErrorLog(err)
@@ -214,7 +215,7 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster, 
 			}
 		} else if SPAWNER_TYPE == COMPONENT_RC {
 			// get all replica controllers
-			rcList, err := GetReplicationControllers(&cluster)
+			rcList, err := cluster.GetReplicationControllers()
 			if err != nil {
 				ErrorLog("kube control; listCouchdbclusters: get repl controllers error")
 				ErrorLog(err)
@@ -226,11 +227,31 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster, 
 			// TODO
 		}
 		// add cluster to array
-		clusters = append(clusters, cluster)
+		clusters = append(clusters, *cluster)
 	}
 	// done, return cluster array
 	return &clusters, nil
 }
+
+// list all couchdb clusters for user
+// @param username - string
+// @return *[]CouchdbCLuster - array of all couchdb clusters
+func (cluster *CouchdbCluster) ScaleCouchdbCluster() (error) {
+	var err error
+
+	if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
+		deployment, _ := cluster.GetDeployment()
+		// its ok, scale cluster
+		err = cluster.ScaleDeployment(deployment)
+	} else if SPAWNER_TYPE == COMPONENT_RC {
+		//get rrc list
+		rcList, _ := cluster.GetReplicationControllers()
+		// scale replication controllers
+		err = cluster.ScaleRC(rcList)
+	}
+	return err
+}
+
 
 
 // create service for couchdb cluster
@@ -239,7 +260,7 @@ func ListCouchdbClusters(username string, namespace string) (*[]CouchdbCluster, 
 // @param cluster - struct CouchdbCluster - required:tag, labels, namespace, username,
 // @return api.Service - created kube service
 // @return error - errors that occur during creation
-func CreateService(cluster * CouchdbCluster) (*api.Service, error) {
+func (cluster *CouchdbCluster) CreateService() (*api.Service, error) {
 	// service ports
 	svcPorts := api.ServicePort{Port: COUCHDB_PORT}
 	// service specs
@@ -266,7 +287,7 @@ func CreateService(cluster * CouchdbCluster) (*api.Service, error) {
 // @param cluster * CouchdbCluster
 // @return *api.Service - found deployment, return nil if deployment was not found
 // @return error - any error that occurs during fetching deployment
-func GetService(cluster * CouchdbCluster) (*api.Service, error) {
+func (cluster *CouchdbCluster) GetService() (*api.Service, error) {
 	// get kube api
 	c, err := KubeClient(KUBE_API)
 	// check for errors
@@ -301,7 +322,7 @@ func GetService(cluster * CouchdbCluster) (*api.Service, error) {
 // delete service for couchdb cluster
 // @param cluster *CouchdbCluster - cluster that will be deleted
 // @return - error
-func DeleteService(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) DeleteService() (error) {
 	// get kube client
 	c, err := KubeClient(KUBE_API)
 
@@ -322,7 +343,7 @@ func DeleteService(cluster *CouchdbCluster) (error) {
 // @param cluster * CouchdbCluster
 // @return []*api.Pod - all pods that belong to this couchdb cluster
 // @return error - any error that occurs during fetching deployment
-func GetPods(cluster *CouchdbCluster) (*[]api.Pod, error) {
+func (cluster *CouchdbCluster) GetPods() (*[]api.Pod, error) {
 	// get kube api
 	c, err := KubeClient(KUBE_API)
 	// check for errors
@@ -354,7 +375,7 @@ func GetPods(cluster *CouchdbCluster) (*[]api.Pod, error) {
 // uses label selector to find all pods
 // @param cluster *CouchdbCluster
 // @return error
-func DeletePods(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) DeletePods() (error) {
 	// get kube client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
@@ -396,7 +417,7 @@ func DeletePods(cluster *CouchdbCluster) (error) {
 // @param volumes bool - if true podTemplate will have also configured persistent volumes
 // @param pvClaimName string - required only when volumes is true, persistent volume claim that will be bound to this pod
 // @return *api.PodTemplateSpec - initialized podTemplateSpec
-func CouchdbPodTemplate(cluster *CouchdbCluster, volumes bool, pvcClaimName string) (*api.PodTemplateSpec) {
+func (cluster *CouchdbCluster) CouchdbPodTemplate(volumes bool, pvcClaimName string) (*api.PodTemplateSpec) {
 	// container ports init
 	contPort := api.ContainerPort{ContainerPort: COUCHDB_PORT}
 

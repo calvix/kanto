@@ -40,12 +40,26 @@ func ParseUser(r *http.Request) (u *User) {
 	// done
 	return u
 }
-
-func DatabasesToReplicate() ([]string){
+// dummy db storage
+var dbs_storage map[string][]string = make(map[string][]string)
+func DatabasesToReplicate(username string) ([]string){
 	// DUMMY
-	return []string{"test", "_users"}
+	users_db := dbs_storage[username]
+	if len(users_db) > 0 {
+		return users_db
+	} else {
+		return []string{"test", "_users"}
+	}
+
+
 }
 
-func SaveReplDatabases(dbs []string) {
+func SaveReplDatabases(username string, dbs []string) {
 	// DUMMY
+	users_db := dbs_storage[username]
+	if len(users_db) > 0 {
+		dbs_storage[username] = append(users_db, dbs...)
+	} else {
+		dbs_storage[username] = append([]string{"test", "_users"}, dbs...)
+	}
 }

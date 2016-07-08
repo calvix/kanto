@@ -16,9 +16,9 @@ import (
 // @return extensions.Deployment - created kube deployment
 // @return error - errors that occur during creation
 //
-func CreateDeployment(cluster * CouchdbCluster)(*extensions.Deployment, error) {
+func (cluster *CouchdbCluster) CreateDeployment()(*extensions.Deployment, error) {
 	// get  pod template without volumes
-	podTemplate := *CouchdbPodTemplate(cluster, false, "")
+	podTemplate := *cluster.CouchdbPodTemplate(false, "")
 
 	// deployment spec label selector
 	lSelector := unversioned.LabelSelector{MatchLabels: cluster.Labels}
@@ -54,7 +54,7 @@ func CreateDeployment(cluster * CouchdbCluster)(*extensions.Deployment, error) {
 // @param cluster * CouchdbCluster
 // @return *extensions.Deployment - found deployment, return nil if deployment was not found
 // @return error - any error that occurs during fetching deployment
-func GetDeployment(cluster * CouchdbCluster) (*extensions.Deployment, error) {
+func (cluster *CouchdbCluster) GetDeployment() (*extensions.Deployment, error) {
 	// get kube extensions api
 	c, err := KubeClientExtensions(KUBE_API)
 	// check for errors
@@ -89,7 +89,7 @@ func GetDeployment(cluster * CouchdbCluster) (*extensions.Deployment, error) {
 // Delete deployment for specified couchdb cluster
 // deletes deployment and replica sets
 //@param cluster *CouchdbCluster -
-func DeleteDeployment(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) DeleteDeployment() (error) {
 	// options for delete
 	orphan := true
 	deleteOptions := api.DeleteOptions{OrphanDependents: &orphan}
@@ -143,7 +143,7 @@ func DeleteDeployment(cluster *CouchdbCluster) (error) {
 // scale couchdb cluster to new replica number
 // @param cluster *CouchdbCluster - coucbdb cluster with new replica number
 // @param oldDeployment  *extensions.Deployment - deployment with old replica number,  fetched via GetDeployment()
-func ScaleDeployment(cluster *CouchdbCluster, oldDeployment *extensions.Deployment) (error){
+func (cluster *CouchdbCluster) ScaleDeployment(oldDeployment *extensions.Deployment) (error){
 	// get kube extensions client
 	c, err := KubeClientExtensions(KUBE_API)
 	if err != nil {
@@ -161,7 +161,7 @@ func ScaleDeployment(cluster *CouchdbCluster, oldDeployment *extensions.Deployme
 	}
 
 	// we need to reconfigure replication
-	err = SetupReplication(cluster, DatabasesToReplicate())
+	err = cluster.SetupReplication(DatabasesToReplicate(cluster.Username))
 	if err != nil {
 		ErrorLog("kube control : ScaleDeployment: reconfigure replication error")
 		return err

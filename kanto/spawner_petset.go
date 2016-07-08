@@ -23,14 +23,14 @@ import (
 // @return extensions.Deployment - created kube deployment
 // @return error - errors that occur during creation
 //
-func CreatePetSet(cluster * CouchdbCluster)(*apps.PetSet, error) {
+func (cluster * CouchdbCluster) CreatePetSet() (*apps.PetSet, error) {
 	/*
 	PET SET, included in kube 1.3+
 	http://kubernetes-v1-3.github.io/docs/user-guide/petset/
 	// TESTING - ALPHA
 	*/
 	// pod template with volumes
-	podTemplate := *CouchdbPodTemplate(cluster, true, CLUSTER_PREFIX+cluster.Tag)
+	podTemplate := *cluster.CouchdbPodTemplate(true, CLUSTER_PREFIX+cluster.Tag)
 	// pet set spec label selector
 	lSelector := unversioned.LabelSelector{MatchLabels: cluster.Labels}
 

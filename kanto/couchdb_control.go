@@ -31,11 +31,11 @@ const (
 // then it will reinit circle continuous replication between all pods
 // requirement -> replicas > 1 !!
 // @param cluster - CouchdbCluster struct - cluster where setup replication
-func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
+func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 	DebugLog("couchdb_control: Replication setup for all PODS, dbs to replicate:")
 	DebugLog(databases)
 	// check fi all pods are ready and in running state
-	err := CheckAllPods(cluster)
+	err := cluster.CheckAllCouchdbPods()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
 		return err
@@ -43,7 +43,7 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 	// create couchdb admin credentials
 	credentials := couch.NewCredentials(cluster.Username, cluster.Password)
 	// get all pods
-	podList, err := GetPods(cluster)
+	podList, err := cluster.GetPods()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
 		return err
@@ -181,13 +181,13 @@ func CheckServer(server *couch.Server, max_retries int, wait_time int) (error) {
 // before we can configure replication, we have to be sure, that all pods are in running state
 // @param cluster *CouchdbCluster -
 // @return error
-func CheckAllPods(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) CheckAllCouchdbPods() (error) {
 	var podList * []api.Pod
 	var err error
 	retries := MAX_RETRIES
 	for ;; {
 		// get pods for this cluster
-		podList, err = GetPods(cluster)
+		podList, err = cluster.GetPods()
 		if err != nil {
 			ErrorLog("couchdb_control: setup replication - get pods error")
 			ErrorLog(err)

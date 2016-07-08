@@ -88,7 +88,7 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 					Namespace: api.NamespaceDefault, Labels: labels, Password: user.Token}
 
 	// create db cluster
-	err := CreateCouchdbCluster(couchdb_cluster)
+	err := couchdb_cluster.CreateCouchdbCluster()
 
 	// prepare response
 	result := KantoResponse{}
@@ -141,7 +141,7 @@ func deleteDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if service, _ := GetService(couchdb_cluster); service == nil {
+	if service, _ := couchdb_cluster.GetService(); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		result.Status = STATUS_ERROR
@@ -149,7 +149,7 @@ func deleteDatabase(w http.ResponseWriter, r *http.Request) {
 		result.Error = err.Error()
 	} else {
 		// delete couchdb cluster
-		err = DeleteCouchdbCluster(couchdb_cluster)
+		err = couchdb_cluster.DeleteCouchdbCluster()
 
 		// check for errors
 		if err != nil {
@@ -205,7 +205,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if service, _ := GetService(couchdb_cluster); service == nil {
+	if service, _ := couchdb_cluster.GetService(); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		// fail response
@@ -213,16 +213,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 		result.StatusMessage = "couchdb cluster scaling failed, invalid or non-existing cluster tag"
 		result.Error = err.Error()
 	} else {
-		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
-			deployment, _ := GetDeployment(couchdb_cluster)
-			// its ok, scale cluster
-			err = ScaleDeployment(couchdb_cluster, deployment)
-		} else if SPAWNER_TYPE == COMPONENT_RC {
-			//get rrc list
-			rcList, _ := GetReplicationControllers(couchdb_cluster)
-			// scale replication controllers
-			err = ScaleRC(couchdb_cluster, rcList)
-		}
+		err = couchdb_cluster.ScaleCouchdbCluster()
 			// check for errors
 		if err != nil {
 			// fail response
@@ -273,7 +264,7 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	_, err := GetService(couchdb_cluster)
+	_, err := couchdb_cluster.GetService()
 	if err != nil {
 		ErrorLog("web_api - replicate DB : get deployment error")
 		ErrorLog(err)
@@ -284,18 +275,18 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// get replica number
 		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
-			deployment, _ := GetDeployment(couchdb_cluster)
+			deployment, _ := couchdb_cluster.GetDeployment()
 			// save replicas number
 			couchdb_cluster.Replicas = deployment.Spec.Replicas
 		} else if SPAWNER_TYPE == COMPONENT_RC {
 			// get rcs
-			rcs, _ := GetReplicationControllers(couchdb_cluster)
+			rcs, _ := couchdb_cluster.GetReplicationControllers()
 			// save replicas number
 			couchdb_cluster.Replicas = int32(len(*rcs))
 		}
 
 		// setup replication for specified databases
-		err := SetupReplication(couchdb_cluster, databases)
+		err := couchdb_cluster.SetupReplication(databases)
 
 		if err != nil {
 			ErrorLog("web_api - replicate DB : setup replication")
@@ -312,7 +303,7 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// save requested dbs to persistent storage, so we can reconfigure replication later
-	SaveReplDatabases(databases)
+	SaveReplDatabases(couchdb_cluster.Username, databases)
 
 	// marshal response to JSON
 	result_json, _ := json.Marshal(result)
@@ -386,7 +377,7 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	service, err := GetService(couchdb_cluster)
+	service, err := couchdb_cluster.GetService()
 	if err != nil {
 		ErrorLog("kube_control: detailDatabase: failed to get deployment")
 		ErrorLog(err)
@@ -398,12 +389,12 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// load active replicas
 		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
-			deployment, _ := GetDeployment(couchdb_cluster)
+			deployment, _ := couchdb_cluster.GetDeployment()
 			// save replicas number
 			couchdb_cluster.Replicas = deployment.Spec.Replicas
 		} else if SPAWNER_TYPE == COMPONENT_RC {
 			// get rcs
-			rcs, _ := GetReplicationControllers(couchdb_cluster)
+			rcs, _ := couchdb_cluster.GetReplicationControllers()
 			// save replicas number
 			couchdb_cluster.Replicas = int32(len(*rcs))
 		}

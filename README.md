@@ -1,4 +1,7 @@
 # kanto
+
+TODO: pv wont work with couchdb docker image
+
 web service to create and manage multi instance couchdb databases (with replication) within kubernetes
 
 REQUIRES: kubernetes v 1.2.1+ 

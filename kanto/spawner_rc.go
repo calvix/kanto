@@ -14,7 +14,7 @@ import (
 // @param cluster *CouchdbCluster
 // @return *api.ReplicationController - initialized replication controller
 // @return error
-func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationController,error){
+func (cluster *CouchdbCluster) CouchdbReplicationController() (*api.ReplicationController,error){
 	// kube client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
@@ -23,7 +23,7 @@ func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationCont
 		return  nil, err
 	}
 	// get new pv claim
-	pvClaim := CouchdbPVClaim(cluster)
+	pvClaim := cluster.CouchdbPVClaim()
 	// create new pv claim
 	pvClaim, err = c.PersistentVolumeClaims(cluster.Namespace).Create(pvClaim)
 	if err != nil {
@@ -35,7 +35,7 @@ func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationCont
 		DebugLog("spawner_rc: created pvc "+pvClaim.Name)
 	}
 	// get pod template for replication controller
-	podTemplate := CouchdbPodTemplate(cluster, false, pvClaim.Name)
+	podTemplate := cluster.CouchdbPodTemplate(false, pvClaim.Name)
 	// replication controller spec
 	rcSpec := api.ReplicationControllerSpec{Selector: cluster.Labels, Template: podTemplate,
 								Replicas: 1}
@@ -52,7 +52,7 @@ func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationCont
 // init all necessary struct for rc and pvc and then via kube client creates it
 // @param cluster - struct CouchdbCluster with filled data
 // @return error - errors that occur during creation
-func CreateReplicationControllers(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) CreateReplicationControllers() (error) {
 	c, err := KubeClient(KUBE_API)
 	// check for errors
 	if err != nil {
@@ -66,7 +66,7 @@ func CreateReplicationControllers(cluster *CouchdbCluster) (error) {
 			// add replica label for rc controller
 			cluster.Labels[LABEL_REPLICA] = strconv.Itoa(i)
 			// init replication controller
-			rc, err := CouchdbReplicationController(cluster)
+			rc, err := cluster.CouchdbReplicationController()
 			// create replication controller
 			rc, err = c.ReplicationControllers(cluster.Namespace).Create(rc)
 			if err != nil {
@@ -84,10 +84,9 @@ func CreateReplicationControllers(cluster *CouchdbCluster) (error) {
 }
 
 // tries get ReplicationControllers from kubernetes with specified cluster tag
-// @param cluster * CouchdbCluster
 // @return *[]api.ReplicationController - found rc array, return nil if rc  was not found
 // @return error - any error that occurs during fetching rc
-func GetReplicationControllers(cluster * CouchdbCluster) (*[]api.ReplicationController, error) {
+func (cluster *CouchdbCluster) GetReplicationControllers() (*[]api.ReplicationController, error) {
 	// get kube extensions api
 	c, err := KubeClient(KUBE_API)
 	// check for errors
@@ -117,7 +116,7 @@ func GetReplicationControllers(cluster * CouchdbCluster) (*[]api.ReplicationCont
 // deletes replication controllers and pvc
 // @param cluster *CouchdbCluster - cluster that will be deleted
 // @return error
-func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
+func (cluster *CouchdbCluster) DeleteReplicationControllers() (error) {
 	// get kube client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
@@ -176,7 +175,7 @@ func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
 // @param cluster *CouchdbCluster - coucbdb cluster with new replica number
 // @param rcList *[]api.ReplicationController - lsit of current rc - fetched via GetReplicationCOntrollers()
 // @return error - error
-func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (error){
+func (cluster *CouchdbCluster) ScaleRC(rcList *[]api.ReplicationController) (error){
 	// old and new replica count
 	currentReplicas := len(*rcList)
 	newReplicas := int(cluster.Replicas)
@@ -187,12 +186,12 @@ func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (erro
 	if newReplicas > currentReplicas {
 		// scape up
 		DebugLog("spawner_rc: scaleRC: Scaling Up")
-		err = ScaleRCup(cluster, newReplicas, currentReplicas)
+		err = cluster.ScaleRCup(newReplicas, currentReplicas)
 
 	} else if newReplicas < currentReplicas {
 		// scale down
 		DebugLog("spawner_rc: scaleRC: Scaling Down")
-		err = ScaleRCDown(cluster, newReplicas, currentReplicas)
+		err = cluster.ScaleRCDown(newReplicas, currentReplicas)
 	} else {
 		// newReplicas == currentReplicas
 		//  nothing to do
@@ -205,7 +204,7 @@ func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (erro
 	}
 
 	// we need to reconfigure replication
-	err = SetupReplication(cluster, DatabasesToReplicate())
+	err = cluster.SetupReplication(DatabasesToReplicate(cluster.Username))
 	if err != nil {
 		ErrorLog("spawner_rc : ScaleRC: reconfigure replication error")
 		return err
@@ -218,7 +217,7 @@ func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (erro
 // @param newReplicas int - new number for replicas
 // @param currentReplicas int - old number for replicas
 // @return error - error
-func ScaleRCDown(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (error) {
+func (cluster *CouchdbCluster) ScaleRCDown(newReplicas int, currentReplicas int) (error) {
 	// get kube extensions client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
@@ -280,7 +279,7 @@ func ScaleRCDown(cluster *CouchdbCluster, newReplicas int, currentReplicas int) 
 // @param newReplicas int - new number for replicas
 // @param currentReplicas int - old number for replicas
 // @return error - error
-func ScaleRCup(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (error){
+func (cluster *CouchdbCluster) ScaleRCup(newReplicas int, currentReplicas int) (error){
 	// get kube extensions client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
@@ -296,7 +295,7 @@ func ScaleRCup(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (e
 		// add replica index label
 		cluster.Labels[LABEL_REPLICA]= strconv.Itoa(newReplicaIndex)
 		// init rc
-		rc , err := CouchdbReplicationController(cluster)
+		rc , err := cluster.CouchdbReplicationController()
 		if err != nil{
 			ErrorLog("spawner_rc: scale rc: failed to init replication controller ")
 			ErrorLog(err)
@@ -320,7 +319,7 @@ func ScaleRCup(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (e
 // pvc name is automatically generated by kubernetes
 // @param cluster *CouchdbCluster - cluster that will be using this pvc
 // @return *api.PersistentVolumeClaim - filled pvc claim struct ready to be created
-func CouchdbPVClaim(cluster *CouchdbCluster) (*api.PersistentVolumeClaim){
+func (cluster *CouchdbCluster) CouchdbPVClaim() (*api.PersistentVolumeClaim){
 	// resource list
 	rsList := make(api.ResourceList)
 	// SIZE
