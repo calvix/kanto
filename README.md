@@ -187,12 +187,14 @@ Now it only stores db information to global variable so every restart will wipe 
 
 Replication is configured via "_replicator" database and is always **continuous**.
 Replication is configured in circle (ie. pod1 replicates to pod2, pod2 replicates to pod3, ... , podN replicates to pod1)
-Unfortunately in couchdb 1.6.1 there is a bug that  fails when trying replicate database "_users".
-Replication will be aborted with message tak replication worked died. (in replication message there is actual erlang stacktrace instead of error message). Same settings in database "_replicate" works.
-Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes) in single docker container.
+Unfortunately in couchdb 1.6.1 there is a bug that fails replicate database "_users".
+Replication will be aborted with message that replication worked died. (in replication message there is actual erlang stacktrace instead of error message). Same settings in database "_replicate" works.
+
+
+Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes) in single docker container listening on localhost and haproxy which balances requests to nodes.
 
 #Limitations
 To move it into production I would recommend implement:
  * corresponding authentication - **user.go** has only dummy functions
- * saving information about what databases user want replicate - check section: [replication](#replication) for more info
+ * saving information about what databases user want replicate - check section: [replication](#replication-between-pods) for more info
  * sophisticated couchdb username and password configuration - currently, each couchdb will have admin user created with username:token credentials

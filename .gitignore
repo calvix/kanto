@@ -4,3 +4,6 @@ pkg
 kanto-service
 task
 build.sh
+commands
+links*
+test_scenarios.md
