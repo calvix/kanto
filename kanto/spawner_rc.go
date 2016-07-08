@@ -18,7 +18,7 @@ func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationCont
 	// kube client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
-		ErrorLog("kube_control: createCluster: failed to get kube api")
+		ErrorLog("spawner_rc: createCluster: failed to get kube api")
 		ErrorLog(err)
 		return  nil, err
 	}
@@ -27,12 +27,12 @@ func CouchdbReplicationController(cluster *CouchdbCluster) (*api.ReplicationCont
 	// create new pv claim
 	pvClaim, err = c.PersistentVolumeClaims(cluster.Namespace).Create(pvClaim)
 	if err != nil {
-		ErrorLog("kube_control: createCluster: failed create pvc")
+		ErrorLog("spawner_rc: createCluster: failed create pvc")
 		ErrorLog(err)
 		return  nil, err
 	} else {
 		// OK
-		//DebugLog("created pvc "+pvClaim.Name)
+		DebugLog("spawner_rc: created pvc "+pvClaim.Name)
 	}
 	// get pod template for replication controller
 	podTemplate := CouchdbPodTemplate(cluster, false, pvClaim.Name)
@@ -56,7 +56,7 @@ func CreateReplicationControllers(cluster *CouchdbCluster) (error) {
 	c, err := KubeClient(KUBE_API)
 	// check for errors
 	if err != nil {
-		ErrorLog("kube_control: create rc with PV: Cannot connect to Kubernetes api ")
+		ErrorLog("spawner_rc: create rc with PV: Cannot connect to Kubernetes api ")
 		ErrorLog(err)
 		return  err
 	} else {
@@ -68,13 +68,14 @@ func CreateReplicationControllers(cluster *CouchdbCluster) (error) {
 			// init replication controller
 			rc, err := CouchdbReplicationController(cluster)
 			// create replication controller
-			_, err = c.ReplicationControllers(cluster.Namespace).Create(rc)
+			rc, err = c.ReplicationControllers(cluster.Namespace).Create(rc)
 			if err != nil {
-				// very baaaad :)
-				ErrorLog("kube_control: createCLuster: failed to create replication controller "+strconv.Itoa(i))
+				ErrorLog("spawner_rc: createCLuster: failed to create replication controller "+strconv.Itoa(i))
 				ErrorLog(err)
 				// TODO delete replication controllers and pvc
 				return err
+			} else {
+				DebugLog("spawner_rc: created replication controller: "+rc.Name)
 			}
 		}
 	}
@@ -91,7 +92,7 @@ func GetReplicationControllers(cluster * CouchdbCluster) (*[]api.ReplicationCont
 	c, err := KubeClient(KUBE_API)
 	// check for errors
 	if err != nil {
-		ErrorLog("kube control: getReplicationControllers: Cannot connect to Kubernetes api ")
+		ErrorLog("spawner_rc: getReplicationControllers: Cannot connect to Kubernetes api ")
 		ErrorLog(err)
 
 		return nil, err
@@ -101,7 +102,7 @@ func GetReplicationControllers(cluster * CouchdbCluster) (*[]api.ReplicationCont
 		// get all deployments for this user
 		rcList, err := c.ReplicationControllers(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("kube control: getReplicationControllers:  getReplicationCOntrollers list error ")
+			ErrorLog("spawner_rc: getReplicationControllers:  getReplicationCOntrollers list error ")
 			ErrorLog(err)
 
 			return nil, err
@@ -109,7 +110,7 @@ func GetReplicationControllers(cluster * CouchdbCluster) (*[]api.ReplicationCont
 		return &rcList.Items, nil
 	}
 	// nothing matches, return fail
-	return nil,  errors.New("deployment not found")
+	return nil,  errors.New("spawner_rc: deployment not found")
 }
 
 // Delete all replication controllers for this couchdb cluster
@@ -120,7 +121,7 @@ func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
 	// get kube client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
-		ErrorLog("kube control : delete rcs: kube client error")
+		ErrorLog("spawner_rc : delete rcs: kube client error")
 		return err
 	}
 	// list options, with label selector
@@ -130,7 +131,7 @@ func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
 	// get RC list
 	rcList, err := c.ReplicationControllers(cluster.Namespace).List(listOptions)
 	if err != nil {
-		ErrorLog("kube control : delete rcs: list rc error")
+		ErrorLog("spawner_rc: delete rcs: list rc error")
 		return err
 	}
 	// iterate thorough all RC
@@ -140,15 +141,17 @@ func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
 			// delete RC
 			err = c.ReplicationControllers(cluster.Namespace).Delete(rc.Name)
 			if err != nil {
-				ErrorLog("kube control: delete rcs: delete rc error")
+				ErrorLog("spawner_rc: delete rcs: delete rc error")
 				return err
+			} else {
+				DebugLog("spawner_rc deleted replication controller: "+rc.Name)
 			}
 		}
 	}
 	// delete all pvc
 	pvcList, err := c.PersistentVolumeClaims(cluster.Namespace).List(listOptions)
 	if err != nil {
-		ErrorLog("kube control : delete rcs: list pvc error")
+		ErrorLog("spawner_rc: delete rcs: list pvc error")
 		return err
 	}
 	// iterate thorough all RC
@@ -158,16 +161,16 @@ func DeleteReplicationControllers(cluster *CouchdbCluster) (error) {
 			// delete RC
 			err = c.PersistentVolumeClaims(cluster.Namespace).Delete(pvc.Name)
 			if err != nil {
-				ErrorLog("kube control: delete pvc: delete pvc error")
+				ErrorLog("spawner_rc: delete pvc: delete pvc error")
 				return err
+			} else {
+				DebugLog("spawner_rc: deleted pvc : "+pvc.Name)
 			}
 		}
 	}
-
 	// no errors
 	return nil
 }
-
 
 // scale couchdb cluster to new replica number
 // @param cluster *CouchdbCluster - coucbdb cluster with new replica number
@@ -183,12 +186,12 @@ func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (erro
 	// scale up or down ?
 	if newReplicas > currentReplicas {
 		// scape up
-		DebugLog("kube_control: scaleRC: Scaling Up")
+		DebugLog("spawner_rc: scaleRC: Scaling Up")
 		err = ScaleRCup(cluster, newReplicas, currentReplicas)
 
 	} else if newReplicas < currentReplicas {
 		// scale down
-		DebugLog("kube_control: scaleRC: Scaling Down")
+		DebugLog("spawner_rc: scaleRC: Scaling Down")
 		err = ScaleRCDown(cluster, newReplicas, currentReplicas)
 	} else {
 		// newReplicas == currentReplicas
@@ -197,14 +200,14 @@ func ScaleRC(cluster *CouchdbCluster, rcList *[]api.ReplicationController) (erro
 	}
 	// check for errors
 	if err != nil {
-		ErrorLog("kube control : ScaleRC: scale error")
+		ErrorLog("spawner_rc: ScaleRC: scale error")
 		return err
 	}
 
 	// we need to reconfigure replication
 	err = SetupReplication(cluster, DatabasesToReplicate())
 	if err != nil {
-		ErrorLog("kube control : ScaleRC: reconfigure replication error")
+		ErrorLog("spawner_rc : ScaleRC: reconfigure replication error")
 		return err
 	}
 	//everything OK
@@ -219,7 +222,7 @@ func ScaleRCDown(cluster *CouchdbCluster, newReplicas int, currentReplicas int) 
 	// get kube extensions client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
-		ErrorLog("kube control : ScaleRCDown: kube extensions client error")
+		ErrorLog("spawner_rc : ScaleRCDown: kube extensions client error")
 		return err
 	}
 	// options for delete
@@ -239,32 +242,32 @@ func ScaleRCDown(cluster *CouchdbCluster, newReplicas int, currentReplicas int) 
 		// get last RC, use label selector for filter only rc with specified number
 		rcs, err := c.ReplicationControllers(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("kube control : ScaleRC: list RC error")
+			ErrorLog("spawner_rc : ScaleRC: list RC error")
 			return err
 		} else {
 			// delete
 			c.ReplicationControllers(cluster.Namespace).Delete(rcs.Items[0].Name)
-			DebugLog("removing "+rcs.Items[0].Name)
+			DebugLog("spawner_rc: deleted replicaion controller: "+rcs.Items[0].Name)
 		}
 		// delete orphaned PVC
 		pvc, err := c.PersistentVolumeClaims(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("kube control : ScaleRC: list pvc error")
+			ErrorLog("spawner_rc : ScaleRC: list pvc error")
 			return err
 		} else {
 			// delete
 			c.PersistentVolumeClaims(cluster.Namespace).Delete(pvc.Items[0].Name)
-			DebugLog("removing "+pvc.Items[0].Name)
+			DebugLog("spawner_rc: deleted pvc "+pvc.Items[0].Name)
 		}
 		//delete orphaned POD
 		pod, err := c.Pods(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("kube control : ScaleRC: list pvc error")
+			ErrorLog("spawner_rc: ScaleRC: list pvc error")
 			return err
 		} else {
 			// delete
 			c.Pods(cluster.Namespace).Delete(pod.Items[0].Name, &deleteOptions)
-			DebugLog("removing "+pod.Items[0].Name)
+			DebugLog("spawner_rc: deleted pod "+pod.Items[0].Name)
 		}
 	 }
 	// clear labels
@@ -281,7 +284,7 @@ func ScaleRCup(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (e
 	// get kube extensions client
 	c, err := KubeClient(KUBE_API)
 	if err != nil {
-		ErrorLog("kube control : ScaleRCDown: kube extensions client error")
+		ErrorLog("spawner_rc : ScaleRCDown: kube extensions client error")
 		return err
 	}
 	// how much new rc should we spawn
@@ -295,15 +298,14 @@ func ScaleRCup(cluster *CouchdbCluster, newReplicas int, currentReplicas int) (e
 		// init rc
 		rc , err := CouchdbReplicationController(cluster)
 		if err != nil{
-			ErrorLog("kube_control: scale rc: failed to init replication controller ")
+			ErrorLog("spawner_rc: scale rc: failed to init replication controller ")
 			ErrorLog(err)
 			return err
 		}
 		// create replication controller
 		rc, err = c.ReplicationControllers(cluster.Namespace).Create(rc)
 		if err != nil {
-			// very baaaad :)
-			ErrorLog("kube_control: scale rc: failed to create replication controller "+strconv.Itoa(i))
+			ErrorLog("spawner_rc: scale rc: failed to create replication controller "+strconv.Itoa(i))
 			ErrorLog(err)
 			return err
 		}

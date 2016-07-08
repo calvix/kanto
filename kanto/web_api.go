@@ -311,6 +311,9 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// save requested dbs to persistent storage, so we can reconfigure replication later
+	SaveReplDatabases(databases)
+
 	// marshal response to JSON
 	result_json, _ := json.Marshal(result)
 	// write json result

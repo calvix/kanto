@@ -10,23 +10,16 @@ import (
 	"errors"
 	"strings"
 	"time"
-	"strconv"
 	// kubernetes imports
 	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/api"
 	client "github.com/kubernetes/kubernetes/pkg/client/unversioned"
-	"k8s.io/kubernetes/pkg/apis/extensions"
-	"k8s.io/kubernetes/pkg/api/unversioned"
 	"k8s.io/kubernetes/pkg/labels"
-	"k8s.io/kubernetes/pkg/apis/apps"
-	"k8s.io/kubernetes/pkg/api/resource"
 )
 
 // default kube api,  can be overwritten by os ENV "KUBERNETES_API_URL"
 var KUBE_API string = "http://127.0.0.1:8080"
 const (
-
-
 	COUCHDB_PORT = 5984
 	COUCHDB_PORT_STRING = "5984"
 
@@ -42,7 +35,6 @@ const (
 	DOCKER_IMAGE = "couchdb"
 	COUCHDB_VOLUME_MOUNTPATH = "/usr/local/var/lib/couchdb"
 	COUCHDB_VOLUME_SIZE = 5*1024*1024*1024 // 5GB
-
 
 
 	COMPONENT_RC = "rc"
@@ -123,13 +115,12 @@ func CreateCouchdbCluster(cluster *CouchdbCluster) (error){
 		ErrorLog(err)
 		return err
 	}
-
 	// if required more than 1 replica, configure replication
 	if cluster.Replicas > 1 {
 		// setup replication for basic databases
 		SetupReplication(cluster, DatabasesToReplicate())
 	} else {
-		DebugLog("not setting replication, only 1 replica")
+		DebugLog("kube_control: not setting replication, only 1 replica")
 	}
 	// no error
 	return  nil

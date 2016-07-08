@@ -32,49 +32,24 @@ const (
 // requirement -> replicas > 1 !!
 // @param cluster - CouchdbCluster struct - cluster where setup replication
 func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
-	//DebugLog("Replication setup for all PODS")
-	var podList * []api.Pod
-	var err error
-	retries := MAX_RETRIES
-	for ;; {
-		// get pods for this cluster
-		podList, err = GetPods(cluster)
-		if err != nil {
-			ErrorLog("couchdb_control: setup replication - get pods error")
-			ErrorLog(err)
-			return err
-		}
-		// check if all pods are already spawned
-		if len(*podList) == int(cluster.Replicas) {
-			ok := true
-			// check if all pods are in state running
-			for _, pod := range *podList {
-				if pod.Status.Phase != api.PodRunning {
-					// pod is not ready yet
-					ok = false
-					break
-				}
-			}
-			// if we got all pods and all pods are running, then stop waiting and continue with replication
-			if ok {
-				//DebugLog("All Pods are ready")
-				break
-			}
-		} else if retries <= 0 {
-			errors.New("waited too long for containers state")
-			ErrorLog(err)
-			return err
-			break
-		} else {
-			// wait for all pods
-			time.Sleep(time.Millisecond*RETRY_WAIT_TIME)
-			retries--
-		}
+	DebugLog("couchdb_control: Replication setup for all PODS, dbs to replicate:")
+	DebugLog(databases)
+	// check fi all pods are ready and in running state
+	err := CheckAllPods(cluster)
+	if err != nil {
+		ErrorLog("couchdb_control: setup_replication: check all pods error")
+		return err
 	}
 	// create couchdb admin credentials
 	credentials := couch.NewCredentials(cluster.Username, cluster.Password)
-
+	// get all pods
+	podList, err := GetPods(cluster)
+	if err != nil {
+		ErrorLog("couchdb_control: setup_replication: check all pods error")
+		return err
+	}
 	pods := *podList
+
 	// iterate through all pods
 	for i := 0 ; i < len(pods) ; i++ {
 		// index of next pod
@@ -90,7 +65,6 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			ErrorLog(err)
 			return err
 		}
-
 		// secondary - replicate TO
 		server2 := couch.NewServer("http://"+pods[j].Status.PodIP+":"+COUCHDB_PORT_STRING, credentials)
 		if err := CheckServer(server2, MAX_RETRIES, RETRY_WAIT_TIME); err != nil {
@@ -99,7 +73,6 @@ func SetupReplication(cluster *CouchdbCluster, databases []string) (error) {
 			ErrorLog(err)
 			return err
 		}
-
 
 		// set replication between two pods for all listed databases
 		for _, db := range databases {
@@ -201,4 +174,51 @@ func CheckServer(server *couch.Server, max_retries int, wait_time int) (error) {
 		// reduce retry count
 		retries--
 	}
+}
+
+// check if all pods are in running state, if not it will wait for them
+// (unless max retry count is reached)
+// before we can configure replication, we have to be sure, that all pods are in running state
+// @param cluster *CouchdbCluster -
+// @return error
+func CheckAllPods(cluster *CouchdbCluster) (error) {
+	var podList * []api.Pod
+	var err error
+	retries := MAX_RETRIES
+	for ;; {
+		// get pods for this cluster
+		podList, err = GetPods(cluster)
+		if err != nil {
+			ErrorLog("couchdb_control: setup replication - get pods error")
+			ErrorLog(err)
+			return err
+		}
+		// check if all pods are already spawned
+		if len(*podList) == int(cluster.Replicas) {
+			ok := true
+			// check if all pods are in state running
+			for _, pod := range *podList {
+				if pod.Status.Phase != api.PodRunning {
+					// pod is not ready yet
+					ok = false
+					break
+				}
+			}
+			// if we got all pods and all pods are running, then stop waiting and continue with replication
+			if ok {
+				//DebugLog("All Pods are ready")
+				break
+			}
+		} else if retries <= 0 {
+			errors.New("couchdb_control: setup_replication: waited too long for containers state")
+			ErrorLog(err)
+			return err
+			break
+		} else {
+			// wait for all pods
+			time.Sleep(time.Millisecond*RETRY_WAIT_TIME)
+			retries--
+		}
+	}
+	return nil
 }
