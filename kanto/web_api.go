@@ -141,7 +141,7 @@ func deleteDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if deployment, _ := GetDeployment(couchdb_cluster); deployment == nil {
+	if service, _ := GetService(couchdb_cluster); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		result.Status = STATUS_ERROR
@@ -205,7 +205,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if deployment, _ := GetDeployment(couchdb_cluster); deployment == nil {
+	if service, _ := GetService(couchdb_cluster); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		// fail response
@@ -213,9 +213,16 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 		result.StatusMessage = "couchdb cluster scaling failed, invalid or non-existing cluster tag"
 		result.Error = err.Error()
 	} else {
-		// its ok, scale cluster
-		err = ScaleCouchdbCluster(couchdb_cluster, deployment)
-
+		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
+			deployment, _ := GetDeployment(couchdb_cluster)
+			// its ok, scale cluster
+			err = ScaleDeployment(couchdb_cluster, deployment)
+		} else if SPAWNER_TYPE == COMPONENT_RC {
+			//get rrc list
+			rcList, _ := GetReplicationControllers(couchdb_cluster)
+			// scale replication controllers
+			err = ScaleRC(couchdb_cluster, rcList)
+		}
 			// check for errors
 		if err != nil {
 			// fail response
@@ -266,7 +273,7 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	deployment, err := GetDeployment(couchdb_cluster)
+	_, err := GetService(couchdb_cluster)
 	if err != nil {
 		ErrorLog("web_api - replicate DB : get deployment error")
 		ErrorLog(err)
@@ -275,8 +282,17 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 		result.StatusMessage = "couchdb cluster configure db replication failed, cannot find cluster"
 		result.Error = err.Error()
 	} else {
-		// save replicas number
-		couchdb_cluster.Replicas = deployment.Spec.Replicas
+		// get replica number
+		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
+			deployment, _ := GetDeployment(couchdb_cluster)
+			// save replicas number
+			couchdb_cluster.Replicas = deployment.Spec.Replicas
+		} else if SPAWNER_TYPE == COMPONENT_RC {
+			// get rcs
+			rcs, _ := GetReplicationControllers(couchdb_cluster)
+			// save replicas number
+			couchdb_cluster.Replicas = int32(len(*rcs))
+		}
 
 		// setup replication for specified databases
 		err := SetupReplication(couchdb_cluster, databases)
@@ -367,7 +383,7 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	deployment, err := GetDeployment(couchdb_cluster)
+	service, err := GetService(couchdb_cluster)
 	if err != nil {
 		ErrorLog("kube_control: detailDatabase: failed to get deployment")
 		ErrorLog(err)
@@ -378,25 +394,21 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 		result.Error = err.Error()
 	} else {
 		// load active replicas
-		couchdb_cluster.Replicas = deployment.Spec.Replicas
+		if SPAWNER_TYPE == COMPONENT_DEPLOYMENT {
+			deployment, _ := GetDeployment(couchdb_cluster)
+			// save replicas number
+			couchdb_cluster.Replicas = deployment.Spec.Replicas
+		} else if SPAWNER_TYPE == COMPONENT_RC {
+			// get rcs
+			rcs, _ := GetReplicationControllers(couchdb_cluster)
+			// save replicas number
+			couchdb_cluster.Replicas = int32(len(*rcs))
+		}
+		// endpoint
+		couchdb_cluster.Endpoint = ClusterEndpoint(service.Spec.ClusterIP)
 	}
-
-	// get service
-	service, err2 := GetService(couchdb_cluster)
-	if err2 != nil {
-		ErrorLog("kube_control: detailDatabase: failed to get service")
-		ErrorLog(err2)
-		// fail response
-		result.Status = STATUS_ERROR
-		result.StatusMessage = "couchdb cluster detail failed"
-		result.Error = err2.Error()
-	} else {
-		// save service endpoint
-		couchdb_cluster.Endpoint = "http://" + service.Spec.ClusterIP + ":" + COUCHDB_PORT_STRING
-	}
-
 	// no errors
-	if err == nil  && err2 == nil {
+	if err == nil  {
 		result.Status = STATUS_OK
 		result.StatusMessage = "couchdb cluster detail successfull for cluster_tag: "+cluster_tag
 		// print created cluster info

@@ -41,9 +41,19 @@ func main() {
 	env_kube_api := os.Getenv("KUBERNETES_API_URL")
 	if env_kube_api != "" {
 		kanto.KUBE_API = env_kube_api
-		kanto.InfoLog("kubernetes API url set to: "+env_kube_api)
+		kanto.InfoLog("ENV: kubernetes API url set to: "+env_kube_api)
 	} else {
-		kanto.InfoLog("kubernetes API url set to default ("+kanto.KUBE_API+"), use env \"KUBERNETES_API_URL\" to set to different value")
+		kanto.InfoLog("ENV: kubernetes API url set to default ("+kanto.KUBE_API+"), use env \"KUBERNETES_API_URL\" to set to different value")
+	}
+
+	// load spawner type
+	env_spawner_type := os.Getenv("SPAWNER_TYPE")
+	// check env value
+	if env_spawner_type == kanto.COMPONENT_RC || env_spawner_type == kanto.COMPONENT_PETSET {
+		kanto.SPAWNER_TYPE = env_spawner_type
+		kanto.InfoLog("ENV: kanto spawner component set to: \""+env_spawner_type+"\"")
+	} else {
+		kanto.InfoLog("ENV: kanto spawner component set to default (\""+kanto.SPAWNER_TYPE+"\"), use env \"SPAWNER_TYPE\" to change default spawner. Possible values: rc, deployment (no pv), petset (only for kube1.3+)")
 	}
 
 	// start kanto web service

@@ -40,3 +40,12 @@ func ParseUser(r *http.Request) (u *User) {
 	// done
 	return u
 }
+
+func DatabasesToReplicate() ([]string){
+	// DUMMY
+	return []string{"test", "_users"}
+}
+
+func SaveReplDatabases(dbs []string) {
+	// DUMMY
+}
