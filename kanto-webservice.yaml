@@ -21,6 +21,8 @@ spec:
       - env:
         - name: KUBERNETES_API_URL
           value: 127.0.0.1:8080
+        - name: SPAWNER_TYPE
+          value: rc
         image: calvix/kanto
         name: kanto-webservice
         ports:

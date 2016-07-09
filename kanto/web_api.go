@@ -141,7 +141,7 @@ func deleteDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if service, _ := couchdb_cluster.GetService(); service == nil {
+	if service, _ := couchdb_cluster.GetClusterService(); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		result.Status = STATUS_ERROR
@@ -205,7 +205,7 @@ func scaleDatabase(w http.ResponseWriter, r *http.Request) {
 
 	// check if  cluster tag belong to this user or if its even exist
 	var err error
-	if service, _ := couchdb_cluster.GetService(); service == nil {
+	if service, _ := couchdb_cluster.GetClusterService(); service == nil {
 		// no deployment found,  throw an error
 		err = errors.New("invalid or non-existing cluster tag")
 		// fail response
@@ -264,7 +264,7 @@ func replicateDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	_, err := couchdb_cluster.GetService()
+	_, err := couchdb_cluster.GetClusterService()
 	if err != nil {
 		ErrorLog("web_api - replicate DB : get deployment error")
 		ErrorLog(err)
@@ -377,7 +377,7 @@ func detailDatabase(w http.ResponseWriter, r *http.Request) {
 	// prepare response
 	result := KantoResponse{}
 
-	service, err := couchdb_cluster.GetService()
+	service, err := couchdb_cluster.GetClusterService()
 	if err != nil {
 		ErrorLog("kube_control: detailDatabase: failed to get deployment")
 		ErrorLog(err)

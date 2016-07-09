@@ -1,6 +1,4 @@
 # kanto
-TODO:  replication is configured with podIP, but if pod is created on new node, ip can change, so it would be good idea to create service for each pod and configure replication via internal dns name
-
 kanto is a service that can create and manage multi instance couchdb databases (with continuous replication) in kubernetes
 
 REQUIRES: kubernetes v 1.2.1+ 
@@ -150,13 +148,12 @@ kanto works fine with kubernetes 1.2.1+
 kanto is using **couchdb** 1.6.1 official docker image for kubernetes pods, couchdb port is default - **5984**
 
 if using **SPAWNER_TYPE=deployment**
-
+Recommended for testing/development. This solution does not use persistent volumes. Replication is configured via pod IP address which can be volatile.
 When creating a new couchdb cluster, kanto will create "kind: Deployment" and "kind: Service" in kubernetes. 
 Deployment will create corresponding pods (amount is specified with Replicas values).
 These pods are not linked with any application logic. 
 Service will create endpoint that will be accessible from outside.
 This endpoint will load-balance request to all deployment pods.
-This solution does not use persistent volumes.
 
 
 
@@ -168,7 +165,7 @@ These pods are not linked with any application logic.
 Service will create endpoint that will be accessible from outside.
 This endpoint will load-balance request to all deployment pods.
 This solution requires pre-created persistent volumes in kubernetes (at least 5Gi storage and "ReadWriteOnce" access mode)
-
+Each pod will have own service, which will be used for replication. (Pod's ip is volatile and can change, service ip/name is always same)
 
 ##couchdb pod configuration
 Docker image couchdb is started with ENVs **COUCHDB_USER** and **COUCHDB_PASSWORD**  with values username and token.

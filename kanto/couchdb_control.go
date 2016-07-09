@@ -32,9 +32,10 @@ const (
 // requirement -> replicas > 1 !!
 // @param cluster - CouchdbCluster struct - cluster where setup replication
 func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
-	DebugLog("couchdb_control: Replication setup for all PODS, dbs to replicate:")
+	DebugLog("couchdb_control: setup: _replication: Replication setup for all PODS, dbs to replicate:")
 	DebugLog(databases)
 	// check fi all pods are ready and in running state
+	DebugLog("couchdb_control: setup_replication: check all pods:")
 	err := cluster.CheckAllCouchdbPods()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
@@ -43,33 +44,34 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 	// create couchdb admin credentials
 	credentials := couch.NewCredentials(cluster.Username, cluster.Password)
 	// get all pods
-	podList, err := cluster.GetPods()
+	DebugLog("couchdb_control: setup_replication: get all podsservices")
+	podSvcList, err := cluster.GetAllPodServices()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
 		return err
 	}
-	pods := *podList
-
+	podSvcs := *podSvcList
+	DebugLog("couchdb_control: setup_replication: interate throught all pod services")
 	// iterate through all pods
-	for i := 0 ; i < len(pods) ; i++ {
+	for i := 0 ; i < len(podSvcs) ; i++ {
 		// index of next pod
-		j := (i+1) % len(pods)
-		DebugLog("couchdb_control: setup replication: pod:"+pods[i].Name+","+pods[i].Status.PodIP )
+		j := (i+1) % len(podSvcs)
+		DebugLog("couchdb_control: setup replication: pod:"+podSvcs[i].Name+","+podSvcs[i].Spec.ClusterIP )
 
 		// primary - replicate FROM
-		server1 := couch.NewServer("http://"+pods[i].Status.PodIP+":"+COUCHDB_PORT_STRING, credentials)
+		server1 := couch.NewServer("http://"+podSvcs[i].Spec.ClusterIP+":"+COUCHDB_PORT_STRING, credentials)
 		// check server1
 		if err := CheckServer(server1, MAX_RETRIES, RETRY_WAIT_TIME); err != nil {
 			// failed to connect to server after all retries, fail replication
-			ErrorLog("couchdb_control: setupReplication: failed to connect to server1, pod:"+pods[i].Name)
+			ErrorLog("couchdb_control: setupReplication: failed to connect to server1, pod:"+podSvcs[i].Name)
 			ErrorLog(err)
 			return err
 		}
 		// secondary - replicate TO
-		server2 := couch.NewServer("http://"+pods[j].Status.PodIP+":"+COUCHDB_PORT_STRING, credentials)
+		server2 := couch.NewServer("http://"+podSvcs[j].Spec.ClusterIP+":"+COUCHDB_PORT_STRING, credentials)
 		if err := CheckServer(server2, MAX_RETRIES, RETRY_WAIT_TIME); err != nil {
 			// failed to connect to server after all retries, fail replication
-			ErrorLog("couchdb_control: setupReplication: failed to connect to server2, pod:"+pods[j].Name)
+			ErrorLog("couchdb_control: setupReplication: failed to connect to server2, pod:"+podSvcs[j].Name)
 			ErrorLog(err)
 			return err
 		}
@@ -90,7 +92,7 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 			// replication struct
 			replicator := CouchdbReplicator{Id:"replicate_"+db,
 						Continuous: true, Source:db1.URL(),
-						Target:"http://"+cluster.Username+":"+cluster.Password+"@"+pods[j].Status.PodIP+":"+COUCHDB_PORT_STRING+"/"+db}
+						Target:"http://"+cluster.Username+":"+cluster.Password+"@"+podSvcs[j].Spec.ClusterIP+":"+COUCHDB_PORT_STRING+"/"+db}
 
 
 			// 1)

@@ -31,6 +31,7 @@ const (
 	LABEL_USER = "user"
 	LABEL_CLUSTER_TAG = "cluster_tag"
 	LABEL_REPLICA = "replica"
+	LABEL_POD_SERVICE= "pod_service"
 
 	DOCKER_IMAGE = "calvix/couchdb"
 	COUCHDB_VOLUME_MOUNTPATH = "/usr/local/var/lib/couchdb"
@@ -105,7 +106,7 @@ func (cluster *CouchdbCluster) CreateCouchdbCluster() (error){
 	}
 
 	// expose couchdb via service
-	svc, err := cluster.CreateService()
+	svc, err := cluster.CreateClusterService()
 	// save endpoint to struct
 	cluster.Endpoint = ClusterEndpoint(svc.Spec.ClusterIP)
 	// check for errors
@@ -133,7 +134,7 @@ func (cluster *CouchdbCluster) CreateCouchdbCluster() (error){
 // @return error -  error if something goes wrong
 func (cluster *CouchdbCluster) DeleteCouchdbCluster() (error) {
 	// Delete service
-	err := cluster.DeleteService()
+	err := cluster.DeleteClusterService()
 	if err != nil{
 		ErrorLog("kube_control: deleteCouchdb cluster: delete service")
 	}
@@ -260,7 +261,7 @@ func (cluster *CouchdbCluster) ScaleCouchdbCluster() (error) {
 // @param cluster - struct CouchdbCluster - required:tag, labels, namespace, username,
 // @return api.Service - created kube service
 // @return error - errors that occur during creation
-func (cluster *CouchdbCluster) CreateService() (*api.Service, error) {
+func (cluster *CouchdbCluster) CreateClusterService() (*api.Service, error) {
 	// service ports
 	svcPorts := api.ServicePort{Port: COUCHDB_PORT}
 	// service specs
@@ -287,7 +288,7 @@ func (cluster *CouchdbCluster) CreateService() (*api.Service, error) {
 // @param cluster * CouchdbCluster
 // @return *api.Service - found deployment, return nil if deployment was not found
 // @return error - any error that occurs during fetching deployment
-func (cluster *CouchdbCluster) GetService() (*api.Service, error) {
+func (cluster *CouchdbCluster) GetClusterService() (*api.Service, error) {
 	// get kube api
 	c, err := KubeClient(KUBE_API)
 	// check for errors
@@ -322,7 +323,7 @@ func (cluster *CouchdbCluster) GetService() (*api.Service, error) {
 // delete service for couchdb cluster
 // @param cluster *CouchdbCluster - cluster that will be deleted
 // @return - error
-func (cluster *CouchdbCluster) DeleteService() (error) {
+func (cluster *CouchdbCluster) DeleteClusterService() (error) {
 	// get kube client
 	c, err := KubeClient(KUBE_API)
 

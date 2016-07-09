@@ -34,6 +34,7 @@ func (cluster *CouchdbCluster) CouchdbReplicationController() (*api.ReplicationC
 		// OK
 		DebugLog("spawner_rc: created pvc "+pvClaim.Name)
 	}
+
 	// get pod template for replication controller
 	podTemplate := cluster.CouchdbPodTemplate(true, pvClaim.Name)
 	// replication controller spec
@@ -72,13 +73,23 @@ func (cluster *CouchdbCluster) CreateReplicationControllers() (error) {
 			if err != nil {
 				ErrorLog("spawner_rc: createCLuster: failed to create replication controller "+strconv.Itoa(i))
 				ErrorLog(err)
-				// TODO delete replication controllers and pvc
 				return err
 			} else {
 				DebugLog("spawner_rc: created replication controller: "+rc.Name)
 			}
+			// create service for pod
+			svc, err := cluster.CreatePodService(cluster.Labels)
+			if err != nil {
+				ErrorLog("spawner_rc: createCLuster: failed to create service for pod "+strconv.Itoa(i))
+				ErrorLog(err)
+				return err
+			} else {
+				DebugLog("spawner_rc: created pod service: "+svc.Name)
+			}
+
 		}
 	}
+	delete(cluster.Labels, LABEL_REPLICA)
 	// everything is OK
 	return nil
 }
@@ -167,6 +178,34 @@ func (cluster *CouchdbCluster) DeleteReplicationControllers() (error) {
 			}
 		}
 	}
+	// pod service deletion
+
+	// servicePod labels
+	serviceLabels := make(map[string]string)
+	for k,v := range cluster.Labels {
+		serviceLabels[k] = v
+	}
+	serviceLabels[LABEL_POD_SERVICE] = "true"
+	// special list options for pod service
+	listOptions = api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(serviceLabels))}
+	// delete all pod services
+	svcList, err := c.Services(cluster.Namespace).List(listOptions)
+	if err != nil {
+		ErrorLog("spawner_rc: delete podSvc: list svc error")
+		return err
+	}
+	// iterate thorough all RC
+	for _, svc := range svcList.Items {
+		err = c.Services(cluster.Namespace).Delete(svc.Name)
+		if err != nil {
+			ErrorLog("spawner_rc: delete podSvc: delete svc error")
+			return err
+		} else {
+			DebugLog("spawner_rc: deleted podSvc : "+svc.Name)
+		}
+	}
+
+
 	// no errors
 	return nil
 }
@@ -241,33 +280,43 @@ func (cluster *CouchdbCluster) ScaleRCDown(newReplicas int, currentReplicas int)
 		// get last RC, use label selector for filter only rc with specified number
 		rcs, err := c.ReplicationControllers(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("spawner_rc : ScaleRC: list RC error")
+			ErrorLog("spawner_rc : ScaleRCDown: list RC error")
 			return err
 		} else {
 			// delete
 			c.ReplicationControllers(cluster.Namespace).Delete(rcs.Items[0].Name)
-			DebugLog("spawner_rc: deleted replicaion controller: "+rcs.Items[0].Name)
+			DebugLog("spawner_rc: ScaleRCDown: deleted replicaion controller: "+rcs.Items[0].Name)
 		}
 		// delete orphaned PVC
 		pvc, err := c.PersistentVolumeClaims(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("spawner_rc : ScaleRC: list pvc error")
+			ErrorLog("spawner_rc : ScaleRCDown: list pvc error")
 			return err
 		} else {
 			// delete
 			c.PersistentVolumeClaims(cluster.Namespace).Delete(pvc.Items[0].Name)
-			DebugLog("spawner_rc: deleted pvc "+pvc.Items[0].Name)
+			DebugLog("spawner_rc: ScaleRCDown: deleted pvc "+pvc.Items[0].Name)
 		}
 		//delete orphaned POD
 		pod, err := c.Pods(cluster.Namespace).List(listOptions)
 		if err != nil {
-			ErrorLog("spawner_rc: ScaleRC: list pvc error")
+			ErrorLog("spawner_rc: ScaleRCDown: list pvc error")
 			return err
 		} else {
 			// delete
 			c.Pods(cluster.Namespace).Delete(pod.Items[0].Name, &deleteOptions)
-			DebugLog("spawner_rc: deleted pod "+pod.Items[0].Name)
+			DebugLog("spawner_rc: ScaleRCDown: deleted pod "+pod.Items[0].Name)
 		}
+
+		//delete pod service
+		err = cluster.DeletePodService(cluster.Labels)
+		if err != nil {
+			ErrorLog("spawner_rc: ScaleRCDown: delete pod pvc error")
+			return err
+		} else {
+			DebugLog("spawner_rc: ScaleRCDown: deleted pod service")
+		}
+
 	 }
 	// clear labels
 	delete(cluster.Labels, LABEL_REPLICA)
@@ -308,6 +357,16 @@ func (cluster *CouchdbCluster) ScaleRCup(newReplicas int, currentReplicas int) (
 			ErrorLog(err)
 			return err
 		}
+		// create service for pod
+		svc, err := cluster.CreatePodService(cluster.Labels)
+		if err != nil {
+			ErrorLog("spawner_rc: createCLuster: failed to create service for pod "+strconv.Itoa(i))
+			ErrorLog(err)
+			return err
+		} else {
+			DebugLog("spawner_rc: created pod service: "+svc.Name)
+		}
+
 	}
 	// clear labels
 	delete(cluster.Labels, LABEL_REPLICA)
@@ -334,4 +393,99 @@ func (cluster *CouchdbCluster) CouchdbPVClaim() (*api.PersistentVolumeClaim){
 	pvc.Labels = cluster.Labels
 
 	return &pvc
+}
+
+// create service for pod, so tat we can use service ip instead of pods volatile IP
+// @param selector - selector that  will find corresponding pod, this should have label "replica" set
+// @return *api.Service - created service
+// @return error
+func (cluster *CouchdbCluster) CreatePodService(selector map[string]string) (*api.Service,error) {
+	// service special label
+	serviceLabels := make(map[string]string)
+	for k,v := range selector {
+		serviceLabels[k] =v
+	}
+	// add special label
+	serviceLabels[LABEL_POD_SERVICE] = "true"
+
+	// svc port
+	svcPorts := api.ServicePort{Port: COUCHDB_PORT}
+	// service specs
+	serviceSpec := api.ServiceSpec{Selector: selector, Ports: []api.ServicePort{svcPorts}}
+	// init service struct
+	service := api.Service{Spec: serviceSpec}
+	service.GenerateName = cluster.Tag + "-pod-"
+	service.Labels = serviceLabels
+	// get a new kube client
+	c, err := KubeClient(KUBE_API)
+	// check for errors
+	if err != nil {
+		ErrorLog("spawner_rc: CreatePodService: Cannot connect to Kubernetes api ")
+		ErrorLog(err)
+		return nil, err
+	} else {
+		// create service in namespace
+		return c.Services(cluster.Namespace).Create(&service)
+	}
+}
+
+// create service for pod, so tat we can use service ip instead of pods volatile IP
+// @param selector - selector that  will find corresponding service to delete, should have label "replica" set
+// @return *api.Service - created service
+// @return error
+func (cluster *CouchdbCluster) DeletePodService(selector map[string]string) (error) {
+	// list options
+	listOptions := api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(selector))}
+
+	// get a new kube client
+	c, err := KubeClient(KUBE_API)
+	// check for errors
+	if err != nil {
+		ErrorLog("spawner_rc: Delete pod Service: Cannot connect to Kubernetes api ")
+		ErrorLog(err)
+		return err
+	} else {
+		//  get list service
+		svcList, err := c.ServiceAccounts(cluster.Namespace).List(listOptions)
+		if err != nil {
+			ErrorLog("spawner_rc: Delete pod Service: get svc list fail ")
+			ErrorLog(err)
+			return err
+		}
+		// there should be only one element
+		return c.Services(cluster.Namespace).Delete(svcList.Items[0].Name)
+	}
+}
+
+// get all pod services
+func (cluster *CouchdbCluster)GetAllPodServices() (*[]api.Service, error) {
+	// service special label
+	serviceLabels := make(map[string]string)
+	for k,v := range cluster.Labels {
+		serviceLabels[k] =v
+	}
+	// add special pod-service label
+	serviceLabels[LABEL_POD_SERVICE] = "true"
+
+	// list options
+	listOptions := api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(serviceLabels))}
+
+	// get a new kube client
+	c, err := KubeClient(KUBE_API)
+	// check for errors
+	if err != nil {
+		ErrorLog("spawner_rc: get all pod Service: Cannot connect to Kubernetes api ")
+		ErrorLog(err)
+		return nil, err
+	} else {
+		//  get list service
+		svcList, err := c.Services(cluster.Namespace).List(listOptions)
+		if err != nil {
+			ErrorLog("spawner_rc: get all pod Service: get svc list fail ")
+			ErrorLog(err)
+			return nil, err
+		}
+		// fine, no errors
+		return &svcList.Items, nil
+	}
 }
