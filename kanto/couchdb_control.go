@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	MAX_RETRIES = 25
-	RETRY_WAIT_TIME = 700
+	MAX_RETRIES = 35
+	RETRY_WAIT_TIME = 1000
 	METHOD_POST = "POST"
 	METHOD_PUT = "PUT"
 	METHOD_GET = "GET"
@@ -35,7 +35,6 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 	DebugLog("couchdb_control: setup: _replication: Replication setup for all PODS, dbs to replicate:")
 	DebugLog(databases)
 	// check fi all pods are ready and in running state
-	DebugLog("couchdb_control: setup_replication: check all pods:")
 	err := cluster.CheckAllCouchdbPods()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
@@ -44,7 +43,6 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 	// create couchdb admin credentials
 	credentials := couch.NewCredentials(cluster.Username, cluster.Password)
 	// get all pods
-	DebugLog("couchdb_control: setup_replication: get all podsservices")
 	podSvcList, err := cluster.GetAllPodServices()
 	if err != nil {
 		ErrorLog("couchdb_control: setup_replication: check all pods error")
@@ -56,7 +54,7 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 	for i := 0 ; i < len(podSvcs) ; i++ {
 		// index of next pod
 		j := (i+1) % len(podSvcs)
-		DebugLog("couchdb_control: setup replication: pod:"+podSvcs[i].Name+","+podSvcs[i].Spec.ClusterIP )
+		DebugLog("couchdb_control: setup replication: pod: "+podSvcs[i].Name+","+podSvcs[i].Spec.ClusterIP)
 
 		// primary - replicate FROM
 		server1 := couch.NewServer("http://"+podSvcs[i].Spec.ClusterIP+":"+COUCHDB_PORT_STRING, credentials)
@@ -89,7 +87,7 @@ func (cluster *CouchdbCluster) SetupReplication(databases []string) (error) {
 			// 1) using _replicate
 			// 2) using _replicator
 
-			// replication struct
+			// replication struct, use headless service name for replication target
 			replicator := CouchdbReplicator{Id:"replicate_"+db,
 						Continuous: true, Source:db1.URL(),
 						Target:"http://"+cluster.Username+":"+cluster.Password+"@"+podSvcs[j].Spec.ClusterIP+":"+COUCHDB_PORT_STRING+"/"+db}
@@ -168,7 +166,7 @@ func CheckServer(server *couch.Server, max_retries int, wait_time int) (error) {
 			return nil
 		} else if retries <= 0 {
 			// we reached max retry attempts, end with error
-			return errors.New("cannot connect to server "+server.URL()+", attempts: "+strconv.Itoa(max_retries))
+			return errors.New("couchdb_cntrol: check server: cannot connect to server "+server.URL()+", attempts: "+strconv.Itoa(max_retries))
 		} else {
 			// server is not responding, try again after a while
 			time.Sleep(time.Millisecond * time.Duration(wait_time))

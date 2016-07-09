@@ -356,6 +356,8 @@ func (cluster *CouchdbCluster) ScaleRCup(newReplicas int, currentReplicas int) (
 			ErrorLog("spawner_rc: scale rc: failed to create replication controller "+strconv.Itoa(i))
 			ErrorLog(err)
 			return err
+		}else {
+			DebugLog("spawner_rc: created replica controller: "+rc.Name)
 		}
 		// create service for pod
 		svc, err := cluster.CreatePodService(cluster.Labels)
@@ -395,7 +397,7 @@ func (cluster *CouchdbCluster) CouchdbPVClaim() (*api.PersistentVolumeClaim){
 	return &pvc
 }
 
-// create service for pod, so tat we can use service ip instead of pods volatile IP
+// create headless service for pod, so tat we can use service ip instead of pods volatile IP
 // @param selector - selector that  will find corresponding pod, this should have label "replica" set
 // @return *api.Service - created service
 // @return error
@@ -411,7 +413,7 @@ func (cluster *CouchdbCluster) CreatePodService(selector map[string]string) (*ap
 	// svc port
 	svcPorts := api.ServicePort{Port: COUCHDB_PORT}
 	// service specs
-	serviceSpec := api.ServiceSpec{Selector: selector, Ports: []api.ServicePort{svcPorts}}
+	serviceSpec := api.ServiceSpec{Selector: selector, Ports: []api.ServicePort{svcPorts},/* ClusterIP: "None"*/}
 	// init service struct
 	service := api.Service{Spec: serviceSpec}
 	service.GenerateName = cluster.Tag + "-pod-"
@@ -429,14 +431,14 @@ func (cluster *CouchdbCluster) CreatePodService(selector map[string]string) (*ap
 	}
 }
 
-// create service for pod, so tat we can use service ip instead of pods volatile IP
+// delete headless service for pod, so tat we can use service dns name instead of pods volatile IP
 // @param selector - selector that  will find corresponding service to delete, should have label "replica" set
 // @return *api.Service - created service
 // @return error
 func (cluster *CouchdbCluster) DeletePodService(selector map[string]string) (error) {
 	// list options
 	listOptions := api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(selector))}
-
+	DebugLog(selector)
 	// get a new kube client
 	c, err := KubeClient(KUBE_API)
 	// check for errors
@@ -446,7 +448,7 @@ func (cluster *CouchdbCluster) DeletePodService(selector map[string]string) (err
 		return err
 	} else {
 		//  get list service
-		svcList, err := c.ServiceAccounts(cluster.Namespace).List(listOptions)
+		svcList, err := c.Services(cluster.Namespace).List(listOptions)
 		if err != nil {
 			ErrorLog("spawner_rc: Delete pod Service: get svc list fail ")
 			ErrorLog(err)
