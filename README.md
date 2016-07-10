@@ -6,7 +6,7 @@ REQUIRES: kubernetes v 1.2.1+
 WARNING: this is not ready-to-production service, since its lacking authentication for users and it is completely stateless.
 Check [Limitations](#limitations) section for more info about what is missing.
 
-RECOMMENDED: Read about how couchdb cluster (and replication in cluster) is configured in part #Couchdb Cluster configuration (below API documentation)
+RECOMMENDED: Read about how couchdb cluster (and replication in cluster) is configured in [Couchdb cluster configuration](#couchdb-cluster-configuration)
  
 Check [INSTALL.md](https://github.com/calvix/kanto/blob/master/INSTALL.md) for instruction how to run/compile kanto
 
