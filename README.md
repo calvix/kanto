@@ -137,7 +137,7 @@ delete couchdb cluster
 
 `curl  127.0.0.1:80/v0/delete -d "username=johny2&token=Ty5wvW7LuQ3T&cluster_tag=my-test-db1"`
  
- 
+check kanto_test.sh for automated all operations test
  
 #Couchdb Cluster configuration
 info about how kanto creates couchdb cluster and how it configure replication withtin couchdb
@@ -190,7 +190,7 @@ Same settings in database "_replicate" works.
 
 
 Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes)
-in single docker container listening on localhost and haproxy which balances requests to nodes.
+in single docker container listening on localhost and starts haproxy which balances all requests to nodes.
 
 #Limitations
 To move it into production I would recommend implement:
