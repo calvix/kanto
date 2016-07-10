@@ -148,6 +148,7 @@ kanto works fine with kubernetes 1.2.1+
 kanto is using **couchdb** 1.6.1 official docker image for kubernetes pods, couchdb port is default - **5984**
 
 if using **SPAWNER_TYPE=deployment**
+
 Recommended for testing/development. This solution does not use persistent volumes. Replication is configured via pod IP address which can be volatile.
 When creating a new couchdb cluster, kanto will create "kind: Deployment" and "kind: Service" in kubernetes. 
 Deployment will create corresponding pods (amount is specified with Replicas values).
