@@ -1,9 +1,22 @@
+// Kanto
+// web service to manage and scale couchdb running on kubernetes
+// author: Vaclav Rozsypalek
+// Created on 21.06.2016
+
+// file fr support function
 package kanto
 
 import (
 	"math/rand"
 	"time"
+	"log"
 )
+
+// constants
+const (
+	DEBUG = true
+)
+
 // init rand seed with current time
 func InitRandom() {
     rand.Seed(time.Now().UnixNano())
@@ -24,4 +37,21 @@ func RandStringName(n int) string {
 // @param clusterIp - cluster ip from kubernetes service
 func ClusterEndpoint(clusterIp string) (string) {
 	return "http://"+clusterIp+":"+COUCHDB_PORT_STRING
+}
+
+
+
+// debug log
+func DebugLog(content interface{}) {
+	if DEBUG {
+		log.Printf("[debug]: %v", content)
+	}
+}
+// error log
+func ErrorLog(content interface{}) {
+	log.Printf("[ERROR]: %v", content)
+}
+// info log
+func InfoLog(content interface{}) {
+	log.Printf("[INFO]: %v", content)
 }

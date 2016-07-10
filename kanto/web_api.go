@@ -22,12 +22,6 @@ const (
 	STATUS_UNAUTHORIZED = "unauthorized"
 )
 
-// struct for json request that are sent to kanto web api
-type Request struct {
-	credentials User   `json:"credentials"`
-	operation   string `json:"operation"`
-}
-
 // configure web service api handlers
 func ConfigureWebHandlers() *http.ServeMux {
 	mux := http.NewServeMux()
@@ -60,9 +54,9 @@ func createDatabase(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// cluster tag
+	// get cluster tag
 	cluster_tag := r.FormValue("cluster_tag")
-	//  check db tag, if its empty or short  generate a new
+	//  check cluster tag, if its empty or short  generate a new
 	if cluster_tag == ""  || len(cluster_tag) < MIN_CLUSTER_TAG {
 		cluster_tag = RandStringName(MAX_CLUSTER_TAG)
 	} else  if  len(cluster_tag) > MAX_CLUSTER_TAG {
@@ -132,10 +126,10 @@ func deleteDatabase(w http.ResponseWriter, r *http.Request) {
 	labels := make(map[string]string)
 	labels[LABEL_USER] = user.UserName
 	labels[LABEL_CLUSTER_TAG] = cluster_tag
+
 	// init cluster struct
 	couchdb_cluster := &CouchdbCluster{Tag: cluster_tag, Username: user.UserName,
 					Namespace: api.NamespaceDefault, Labels: labels}
-
 	// prepare response
 	result := KantoResponse{}
 

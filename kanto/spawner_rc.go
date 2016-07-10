@@ -311,7 +311,7 @@ func (cluster *CouchdbCluster) ScaleRCDown(newReplicas int, currentReplicas int)
 		//delete pod service
 		err = cluster.DeletePodService(cluster.Labels)
 		if err != nil {
-			ErrorLog("spawner_rc: ScaleRCDown: delete pod pvc error")
+			ErrorLog("spawner_rc: ScaleRCDown: delete pod service error")
 			return err
 		} else {
 			DebugLog("spawner_rc: ScaleRCDown: deleted pod service")
@@ -438,7 +438,6 @@ func (cluster *CouchdbCluster) CreatePodService(selector map[string]string) (*ap
 func (cluster *CouchdbCluster) DeletePodService(selector map[string]string) (error) {
 	// list options
 	listOptions := api.ListOptions{LabelSelector: labels.SelectorFromSet(labels.Set(selector))}
-	DebugLog(selector)
 	// get a new kube client
 	c, err := KubeClient(KUBE_API)
 	// check for errors

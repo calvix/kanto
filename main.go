@@ -53,7 +53,7 @@ func main() {
 		kanto.SPAWNER_TYPE = env_spawner_type
 		kanto.InfoLog("ENV: kanto spawner component set to: \""+env_spawner_type+"\"")
 	} else {
-		kanto.InfoLog("ENV: kanto spawner component set to default (\""+kanto.SPAWNER_TYPE+"\"), use env \"SPAWNER_TYPE\" to change default spawner. Possible values: rc, deployment (no pv), petset (only for kube1.3+)")
+		kanto.InfoLog("ENV: kanto spawner component set to default (\""+kanto.SPAWNER_TYPE+"\"), use env \"SPAWNER_TYPE\" to change default spawner. Possible values: rc, deployment (no pv))")
 	}
 
 	// start kanto web service
