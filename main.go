@@ -29,6 +29,7 @@ func main() {
 		logFile, err := os.Create(LOG_FILE)
 		if err != nil {
 			kanto.ErrorLog("cannot open log file")
+			kanto.ErrorLog(err)
 			return
 		}
 		// set logfile
