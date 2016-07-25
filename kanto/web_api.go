@@ -12,7 +12,7 @@ import (
 	"io"
 	"encoding/json"
 	"errors"
-	"github.com/kubernetes/kubernetes/pkg/api"
+	"k8s.io/kubernetes/pkg/api"
 	"strings"
 )
 

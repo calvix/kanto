@@ -13,7 +13,7 @@ import (
 	// kubernetes imports
 	"k8s.io/kubernetes/pkg/client/restclient"
 	"k8s.io/kubernetes/pkg/api"
-	client "github.com/kubernetes/kubernetes/pkg/client/unversioned"
+	client "k8s.io/kubernetes/pkg/client/unversioned"
 	"k8s.io/kubernetes/pkg/labels"
 )
 
