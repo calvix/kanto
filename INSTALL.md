@@ -27,7 +27,7 @@ simply run commands below
 # 2. docker image
 prerequisites:
  * running docker service
-you can build your own image or use **docker.io/calvix/kanto**
+ you can build your own image or use **docker.io/calvix/kanto**
 
  `docker run --expose 80 -e KUBERNETES_API_URL=kubernetes-api.server.example.com:8080 docker.io/calvix/kanto`
  

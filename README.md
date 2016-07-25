@@ -191,7 +191,7 @@ Same settings in database "_replicate" works.
 
 
 Couchdb 2.+ offers clustering, but official docker image cannot be used since its wraps everything and starts already clustered couchdb (2+ nodes)
-in single docker container listening on localhost and starts haproxy which balances all requests to nodes.
+in single docker container listening on localhost and starts haproxy which balances all requests to nodes .
 
 #Limitations
 To move it into production I would recommend implement:

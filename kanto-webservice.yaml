@@ -24,6 +24,7 @@ spec:
         - name: SPAWNER_TYPE
           value: rc
         image: docker.io/calvix/kanto:latest
+        imagePullPolicy: Always
         name: kanto-webservice
         ports:
         - containerPort: 80
