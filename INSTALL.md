@@ -27,9 +27,9 @@ simply run commands below
 # 2. docker image
 prerequisites:
  * running docker service
-you can build your own image or use **calvix/kanto**
+you can build your own image or use **docker.io/calvix/kanto**
 
- `docker run --expose 80 -e KUBERNETES_API_URL=kubernetes-api.server.example.com:8080 calvix/kanto`
+ `docker run --expose 80 -e KUBERNETES_API_URL=kubernetes-api.server.example.com:8080 docker.io/calvix/kanto`
  
 Dockerfile can be found in separate repository: https://github.com/calvix/kanto-docker 
 
@@ -37,7 +37,7 @@ Dockerfile can be found in separate repository: https://github.com/calvix/kanto-
 prerequisites:
  * running kubernetes 1.2.1+ (requires kube kind deployment)
 
-kubernetes is using docker image **calvix/kanto**
+kubernetes is using docker image **docker.io/calvix/kanto**
 
 whole template is prepared in **kanto-webservice.yaml**
 
