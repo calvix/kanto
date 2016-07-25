@@ -23,7 +23,7 @@ spec:
           value: 127.0.0.1:8080
         - name: SPAWNER_TYPE
           value: rc
-        image: calvix/kanto
+        image: calvix/kanto:latest
         name: kanto-webservice
         ports:
         - containerPort: 80

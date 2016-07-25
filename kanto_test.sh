@@ -1,6 +1,14 @@
 #!/bin/bash
 # kanto API
-export kanto_url="127.0.0.1:80"
+if [ "$1" -ne "" ];
+then
+        export kanto_url="$1"
+else
+        export kanto_url="127.0.0.1:80"
+fi
+
+echo "<<== working with kanto api on: $kanto_url"
+echo
 
 
 # test commands
